@@ -1,24 +1,28 @@
 // app.js
 // Common utility functions and event handlers
 
-// 1) Logging helper
+// 1) Logging helper (fixed error handling)
 export async function logActivity(type, details = '') {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) return;
   const uid = session.user.id;
-  supabase
-    .from('logs')
-    .insert([{ uid, activity_type: type, details }])
-    .catch(err => console.error('Logging error:', err.message));
+  try {
+    const { error } = await supabase
+      .from('logs')
+      .insert([{ uid, activity_type: type, details }]);
+    if (error) console.error('Logging error:', error.message);
+  } catch (err) {
+    console.error('Unexpected logging failure:', err);
+  }
 }
 
 // Modal handling
-function showModal(modalId) {
+export function showModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.style.display = 'block';
 }
 
-function hideModal(modalId) {
+export function hideModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.style.display = 'none';
 }
@@ -47,7 +51,7 @@ function validateForm(formId) {
 }
 
 // Show alert message in page
-function showAlert(message, type = 'success') {
+export function showAlert(message, type = 'success') {
   const container = document.querySelector('.container') || document.body;
   const alertDiv = document.createElement('div');
   alertDiv.className = `alert alert-${type}`;
@@ -57,18 +61,18 @@ function showAlert(message, type = 'success') {
 }
 
 // Format date for display
-function formatDate(dateString) {
+export function formatDate(dateString) {
   const opts = { year: 'numeric', month: 'short', day: 'numeric' };
   return new Date(dateString).toLocaleDateString(undefined, opts);
 }
 
 // Check if current user is admin
-function isAdmin() {
+export function isAdmin() {
   return sessionStorage.getItem('userRole') === 'admin';
 }
 
 // Handle logout via Supabase
-async function handleLogout() {
+export async function handleLogout() {
   const { error } = await supabase.auth.signOut();
   if (error) {
     showAlert('Logout failed: ' + error.message, 'danger');
@@ -79,7 +83,7 @@ async function handleLogout() {
 }
 
 // Guard protected pages: redirect if no active session
-async function checkAuth() {
+export async function checkAuth() {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session) {
     window.location.href = 'index.html';
