@@ -51,31 +51,47 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      // 2) Double‐check auth too
+      // 2) Double‐check authentication
       await checkAuth();
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session.user;
-
-      // 3) Fetch logs (your RLS should allow admins)
-      const { data: logs, error } = await supabase
+      // 3) Fetch raw logs
+      const { data: logs, error: logsError } = await supabase
         .from('logs')
-        .select('timestamp, activity_type, details, profiles(email)')
+        .select('log_id, uid, timestamp, activity_type, details')
         .order('timestamp', { ascending: false });
 
-      if (error) {
-        showAlert('Error loading logs: ' + error.message, 'danger');
+      if (logsError) {
+        showAlert('Error loading logs: ' + logsError.message, 'danger');
         return;
       }
 
-      // 4) Render
+      // 4) Batch‐fetch user emails for those UIDs
+      const uids = [...new Set(logs.map(l => l.uid))];
+      let profilesMap = {};
+      if (uids.length) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('uid, email')
+          .in('uid', uids);
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        } else {
+          profilesMap = profiles.reduce((map, p) => {
+            map[p.uid] = p.email;
+            return map;
+          }, {});
+        }
+      }
+
+      // 5) Render the combined table
       const tbody = document.getElementById('logsTable');
       tbody.innerHTML = '';
       logs.forEach(log => {
+        const email = profilesMap[log.uid] || 'Unknown';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${new Date(log.timestamp).toLocaleString()}</td>
-          <td>${log.profiles?.email || 'Unknown'}</td>
+          <td>${email}</td>
           <td>${log.activity_type}</td>
           <td>${log.details || ''}</td>
         `;
