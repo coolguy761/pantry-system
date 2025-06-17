@@ -1,5 +1,4 @@
 // app.js
-// Assumes window.supabase is already set up via your supabase-config.js
 
 // 1) Logging helper
 window.logActivity = async function(type, details = '') {
