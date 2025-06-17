@@ -106,7 +106,7 @@
 
       let allUsers = [];
 
-      // Load users from profiles table
+      // Load users via RPC if you later add it, otherwise fallback to select
       async function loadUsers() {
         const { data, error } = await supabase
           .from('profiles')
@@ -125,8 +125,8 @@
             <td>${u.email}</td>
             <td>${u.role}</td>
             <td>
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditModal('${u.uid}','${u.role}')">Edit</button>
-              <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteUser('${u.uid}')">Delete</button>
+              <button class="btn btn-sm btn-primary" onclick="openEditModal('${u.uid}','${u.role}')">Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="handleDeleteUser('${u.uid}')">Delete</button>
             </td>`;
           tbody.appendChild(tr);
         });
@@ -143,7 +143,7 @@
         e.preventDefault();
         const email = document.getElementById('userEmail').value.trim();
         const password = document.getElementById('userPassword').value;
-        const role = document.getElementById('userRole').value;
+        const userRole = document.getElementById('userRole').value;
 
         // Create auth user
         const { data, error: signError } = await supabase.auth.signUp({ email, password });
@@ -152,7 +152,7 @@
         // Insert profile
         const { error: profErr } = await supabase
           .from('profiles')
-          .insert([{ uid: data.user.id, email, role }]);
+          .insert([{ uid: data.user.id, email, role: userRole }]);
         if (profErr) return showAlert('Error saving profile: ' + profErr.message, 'danger');
 
         hideModal('addUserModal');
@@ -170,11 +170,11 @@
       document.getElementById('editUserForm').onsubmit = async e => {
         e.preventDefault();
         const uid = document.getElementById('editUserUid').value;
-        const role = document.getElementById('editUserRole').value;
+        const newRole = document.getElementById('editUserRole').value;
 
         const { error } = await supabase
           .from('profiles')
-          .update({ role })
+          .update({ role: newRole })
           .eq('uid', uid);
         if (error) return showAlert('Error updating role: ' + error.message, 'danger');
 
@@ -183,16 +183,17 @@
         loadUsers();
       };
 
-      // Delete user
+      // Delete user using the new SQL RPC
       window.handleDeleteUser = async uid => {
         if (!confirm('Delete this user?')) return;
         const { error } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('uid', uid);
-        if (error) return showAlert('Error deleting user: ' + error.message, 'danger');
-        showAlert('User removed', 'success');
-        loadUsers();
+          .rpc('delete_user_and_auth', { uid_to_delete: uid });
+        if (error) {
+          showAlert('Error deleting user: ' + error.message, 'danger');
+        } else {
+          showAlert('User removed', 'success');
+          loadUsers();
+        }
       };
 
       // Initialize
@@ -201,4 +202,3 @@
   </script>
 </body>
 </html>
-
