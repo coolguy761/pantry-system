@@ -102,10 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     el.style.display = isAdmin() ? 'block' : 'none';
   });
 
-  // d) Redirect non-public pages if not logged in
-  const publicPages = ['index.html','signup.html','reset-password.html','confirm-reset.html'];
-  const page = window.location.pathname.split('/').pop();
-  if (!publicPages.includes(page)) {
+  // d) Redirect guard: skip these public paths
+  const publicPaths = ['/', '/index.html', '/signup.html', '/reset-password.html', '/confirm-reset.html'];
+  const path = window.location.pathname;
+  if (!publicPaths.includes(path)) {
     checkAuth();
   }
 
