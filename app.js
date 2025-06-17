@@ -1,8 +1,8 @@
 // app.js
-// Common utility functions and event handlers
+// Supabase must already be initialized on window.supabase
 
-// 1) Logging helper (fixed error handling)
-export async function logActivity(type, details = '') {
+// 1) Logging helper
+window.logActivity = async function(type, details = '') {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session) return;
   const uid = session.user.id;
@@ -14,32 +14,22 @@ export async function logActivity(type, details = '') {
   } catch (err) {
     console.error('Unexpected logging failure:', err);
   }
-}
+};
 
-// Modal handling
-export function showModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'block';
-}
+// 2) Modal handling
+window.showModal = function(modalId) {
+  const m = document.getElementById(modalId);
+  if (m) m.style.display = 'block';
+};
+window.hideModal = function(modalId) {
+  const m = document.getElementById(modalId);
+  if (m) m.style.display = 'none';
+};
 
-export function hideModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'none';
-}
-
-// Close modal when clicking outside any modal
-window.addEventListener('click', (event) => {
-  if (event.target.classList.contains('modal')) {
-    event.target.style.display = 'none';
-  }
-});
-
-// Form validation
-function validateForm(formId) {
-  const form = document.getElementById(formId);
-  if (!form) return false;
+// 3) Simple form validation
+function validateForm(form) {
   let valid = true;
-  form.querySelectorAll('input[required], select[required], textarea[required]').forEach(input => {
+  form.querySelectorAll('[required]').forEach(input => {
     if (!input.value.trim()) {
       valid = false;
       input.classList.add('error');
@@ -50,72 +40,72 @@ function validateForm(formId) {
   return valid;
 }
 
-// Show alert message in page
-export function showAlert(message, type = 'success') {
+// 4) showAlert
+window.showAlert = function(message, type = 'success') {
   const container = document.querySelector('.container') || document.body;
   const alertDiv = document.createElement('div');
   alertDiv.className = `alert alert-${type}`;
   alertDiv.textContent = message;
   container.insertBefore(alertDiv, container.firstChild);
   setTimeout(() => alertDiv.remove(), 3000);
-}
+};
 
-// Format date for display
-export function formatDate(dateString) {
-  const opts = { year: 'numeric', month: 'short', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString(undefined, opts);
-}
+// 5) formatDate
+window.formatDate = function(dateString) {
+  const d = new Date(dateString);
+  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+};
 
-// Check if current user is admin
-export function isAdmin() {
-  return sessionStorage.getItem('userRole') === 'admin';
-}
-
-// Handle logout via Supabase
-export async function handleLogout() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    showAlert('Logout failed: ' + error.message, 'danger');
-  } else {
-    sessionStorage.clear();
-    window.location.href = 'index.html';
-  }
-}
-
-// Guard protected pages: redirect if no active session
-export async function checkAuth() {
+// 6) checkAuth
+window.checkAuth = async function() {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session) {
     window.location.href = 'index.html';
   }
-}
+};
 
-// Initialize page behaviors
+// 7) isAdmin
+window.isAdmin = function() {
+  return sessionStorage.getItem('userRole') === 'admin';
+};
+
+// 8) handleLogout
+window.handleLogout = async function() {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    window.showAlert('Logout failed: ' + error.message, 'danger');
+  } else {
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  }
+};
+
+// 9) Global DOMContentLoaded to wire up forms/modals
 document.addEventListener('DOMContentLoaded', () => {
-  // Attach form validation
+  // form validation
   document.querySelectorAll('form').forEach(form => {
-    form.addEventListener('submit', (e) => {
-      if (!validateForm(form.id)) {
+    form.addEventListener('submit', e => {
+      if (!validateForm(form)) {
         e.preventDefault();
         showAlert('Please fill in all required fields', 'danger');
       }
     });
   });
 
-  // Show/hide admin-only elements
+  // wire logout buttons
+  document.querySelectorAll('.logout-btn').forEach(btn => {
+    btn.addEventListener('click', handleLogout);
+  });
+
+  // show/hide admin‐only
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin() ? 'block' : 'none';
   });
 
-  // Run auth guard on all but public pages
-  const publicPages = ['index.html', 'signup.html', 'reset-password.html', 'confirm-reset.html'];
-  const current = window.location.pathname.split('/').pop();
-  if (!publicPages.includes(current)) {
+  // guard pages
+  const publicPages = ['index.html','signup.html','reset-password.html','confirm-reset.html'];
+  const cur = window.location.pathname.split('/').pop();
+  if (!publicPages.includes(cur)) {
     checkAuth();
   }
-
-  // Wire logout buttons
-  document.querySelectorAll('.logout-btn').forEach(btn => {
-    btn.addEventListener('click', handleLogout);
-  });
 });
