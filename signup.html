@@ -1,76 +1,93 @@
-<!-- signup.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign Up - Pantry Inventory Management</title>
+  <title>Sign Up – Pantry Inventory Management</title>
   <link rel="stylesheet" href="styles.css">
+
+  <!-- 1) Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- 2) Supabase config -->
   <script src="supabase-config.js"></script>
-  <script src="app.js" type="module"></script>
+  <!-- 3) App helpers (defines showAlert, logActivity, etc.) -->
+  <script src="app.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="text-center mt-2">
-      <h1>Create an Account</h1>
-      <p>Join our Pantry Inventory Management System</p>
-    </div>
-    <div style="max-width: 400px; margin: 2rem auto;">
-      <form id="signupForm">
-        <div class="form-group">
-          <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input type="password" id="confirmPassword" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
-      </form>
-      <div class="text-center mt-2">
-        <p>Already have an account? <a href="index.html">Login here</a></p>
+  <nav class="navbar">
+    <ul class="nav-list">
+      <li><a href="index.html">Login</a></li>
+      <li><a href="signup.html" class="active">Sign Up</a></li>
+    </ul>
+  </nav>
+
+  <div class="container" style="max-width:400px;margin:2rem auto;">
+    <h1 class="text-center">Create an Account</h1>
+
+    <form id="signupForm">
+      <div class="form-group">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" type="text" class="form-control" required>
       </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input id="confirmPassword" type="password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Sign Up</button>
+    </form>
+
+    <div id="postSignup" class="text-center mt-3" style="display:none;">
+      <p>✅ Account created! Please check your email to confirm your address.</p>
+      <p><a href="index.html">Go to Login</a></p>
     </div>
   </div>
 
-  <script type="module">
-    import { logActivity } from './app.js';
-
-    document.getElementById('signupForm').onsubmit = async function(e) {
+  <script>
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const fullName = document.getElementById('fullName').value;
-      const email = document.getElementById('email').value;
+      const fullName = document.getElementById('fullName').value.trim();
+      const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
-      const confirm = document.getElementById('confirmPassword').value;
+      const confirm  = document.getElementById('confirmPassword').value;
+
       if (password !== confirm) {
         showAlert('Passwords do not match', 'danger');
         return;
       }
-      const { data: { user }, error: signError } = await supabase.auth.signUp({ email, password });
-      if (signError) {
-        showAlert(signError.message, 'danger');
+
+      // 1) Sign up
+      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        email, password,
+      });
+      if (signUpError) {
+        showAlert(signUpError.message, 'danger');
         return;
       }
-      const { error: profError } = await supabase
+
+      // 2) Insert profile row
+      const { error: profileError } = await supabase
         .from('profiles')
         .insert([{ uid: user.id, email: user.email, role: 'user' }]);
-      if (profError) {
-        showAlert(profError.message, 'danger');
+      if (profileError) {
+        showAlert('Profile error: ' + profileError.message, 'danger');
         return;
       }
-      await logActivity('Signup');
-      showAlert('Account created! Redirecting to login...', 'success');
-      setTimeout(() => window.location = 'index.html', 1500);
-    };
+
+      // 3) Log the signup
+      await logActivity('Signup', `Name: ${fullName}`);
+
+      // 4) Reveal the post-signup message (no auto-redirect)
+      document.getElementById('signupForm').style.display = 'none';
+      document.getElementById('postSignup').style.display = 'block';
+    });
   </script>
 </body>
 </html>
