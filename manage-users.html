@@ -8,9 +8,9 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Your Supabase config -->
+  <!-- Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- Your common utilities (showModal, hideModal, validateForm, showAlert, checkAuth) -->
+  <!-- App utilities -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -19,7 +19,8 @@
       <li><a href="dashboard.html">Dashboard</a></li>
       <li><a href="pantry.html">Pantry</a></li>
       <li><a href="shopping-list.html">Shopping List</a></li>
-      <li><a href="#" class="logout-btn">Logout</a></li>
+      <li><a href="manage-users.html" class="active">Manage Users</a></li>
+      <li><a href="#" class="logout-btn" onclick="handleLogout()">Logout</a></li>
     </ul>
   </nav>
 
@@ -92,114 +93,111 @@
   </div>
 
   <script>
-    let allUsers = [];
-
     document.addEventListener('DOMContentLoaded', async () => {
+      // 1) Ensure user is authenticated
       await checkAuth();
-      // Only allow admins here
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('uid', session.user.id)
-        .maybeSingle();
-      if (!me || me.role !== 'admin') {
-        return window.location = 'dashboard.html';
+
+      // 2) Only allow admins
+      const role = sessionStorage.getItem('userRole');
+      if (role !== 'admin') {
+        window.location.href = 'dashboard.html';
+        return;
       }
 
-      // Load users
-      await loadUsers();
+      let allUsers = [];
 
-      // Wire search
-      document.getElementById('searchInput')
-        .addEventListener('input', e => {
-          const q = e.target.value.toLowerCase();
-          displayUsers(allUsers.filter(u => u.email.toLowerCase().includes(q)));
+      // Load users from profiles table
+      async function loadUsers() {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('uid, email, role');
+        if (error) return showAlert('Error loading users: ' + error.message, 'danger');
+        allUsers = data;
+        displayUsers(allUsers);
+      }
+
+      function displayUsers(users) {
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="openEditModal('${u.uid}','${u.role}')">Edit</button>
+              <button class="btn btn-sm btn-primary" onclick="handleDeleteUser('${u.uid}')">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
         });
+      }
 
-      // Wire add/edit form handlers
-      document.getElementById('addUserForm').onsubmit = handleAddUser;
-      document.getElementById('editUserForm').onsubmit = handleEditUser;
-    });
-
-    async function loadUsers() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('uid, email, role');
-      if (error) return showAlert('Error loading users: '+error.message,'danger');
-      allUsers = data;
-      displayUsers(allUsers);
-    }
-
-    function displayUsers(users) {
-      const tbody = document.getElementById('userList');
-      tbody.innerHTML = '';
-      users.forEach(u => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${u.email}</td>
-          <td>${u.role}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal('${u.uid}','${u.role}')">Edit</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="handleDeleteUser('${u.uid}')">Delete</button>
-          </td>`;
-        tbody.appendChild(tr);
+      // Search functionality
+      document.getElementById('searchInput').addEventListener('input', e => {
+        const q = e.target.value.toLowerCase();
+        displayUsers(allUsers.filter(u => u.email.toLowerCase().includes(q)));
       });
-    }
 
-    function openEditModal(uid, role) {
-      document.getElementById('editUserUid').value = uid;
-      document.getElementById('editUserRole').value = role;
-      showModal('editUserModal');
-    }
+      // Add user
+      document.getElementById('addUserForm').onsubmit = async e => {
+        e.preventDefault();
+        const email = document.getElementById('userEmail').value.trim();
+        const password = document.getElementById('userPassword').value;
+        const role = document.getElementById('userRole').value;
 
-    async function handleAddUser(e) {
-      e.preventDefault();
-      const email = document.getElementById('userEmail').value.trim();
-      const password = document.getElementById('userPassword').value;
-      const role = document.getElementById('userRole').value;
+        // Create auth user
+        const { data, error: signError } = await supabase.auth.signUp({ email, password });
+        if (signError) return showAlert('Error creating user: ' + signError.message, 'danger');
 
-      // Create auth user
-      const { data, error: signError } = await supabase.auth.signUp({ email, password });
-      if (signError) return showAlert('Error creating user: '+signError.message,'danger');
+        // Insert profile
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .insert([{ uid: data.user.id, email, role }]);
+        if (profErr) return showAlert('Error saving profile: ' + profErr.message, 'danger');
 
-      // Insert profile
-      const { error: profErr } = await supabase
-        .from('profiles')
-        .insert([{ uid: data.user.id, email, role }]);
-      if (profErr) return showAlert('Error saving profile: '+profErr.message,'danger');
+        hideModal('addUserModal');
+        showAlert('User added', 'success');
+        loadUsers();
+      };
 
-      hideModal('addUserModal');
-      showAlert('User added','success');
+      // Edit user
+      window.openEditModal = (uid, role) => {
+        document.getElementById('editUserUid').value = uid;
+        document.getElementById('editUserRole').value = role;
+        showModal('editUserModal');
+      };
+
+      document.getElementById('editUserForm').onsubmit = async e => {
+        e.preventDefault();
+        const uid = document.getElementById('editUserUid').value;
+        const role = document.getElementById('editUserRole').value;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({ role })
+          .eq('uid', uid);
+        if (error) return showAlert('Error updating role: ' + error.message, 'danger');
+
+        hideModal('editUserModal');
+        showAlert('Role updated', 'success');
+        loadUsers();
+      };
+
+      // Delete user
+      window.handleDeleteUser = async uid => {
+        if (!confirm('Delete this user?')) return;
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('uid', uid);
+        if (error) return showAlert('Error deleting user: ' + error.message, 'danger');
+        showAlert('User removed', 'success');
+        loadUsers();
+      };
+
+      // Initialize
       loadUsers();
-    }
-
-    async function handleEditUser(e) {
-      e.preventDefault();
-      const uid = document.getElementById('editUserUid').value;
-      const role = document.getElementById('editUserRole').value;
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role })
-        .eq('uid', uid);
-      if (error) return showAlert('Error updating role: '+error.message,'danger');
-
-      hideModal('editUserModal');
-      showAlert('Role updated','success');
-      loadUsers();
-    }
-
-    async function handleDeleteUser(uid) {
-      if (!confirm('Delete this user?')) return;
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('uid', uid);
-      if (error) return showAlert('Error deleting user: '+error.message,'danger');
-      showAlert('User removed','success');
-      loadUsers();
-    }
+    });
   </script>
 </body>
 </html>
