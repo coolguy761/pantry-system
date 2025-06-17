@@ -72,19 +72,19 @@
         return;
       }
 
-      // 3) Upsert (insert or update) using both uid & email
+      // 3) Upsert (insert or ignore) profile to avoid duplicate-key errors
       if (!profile) {
         const { error: upsertError } = await supabase
           .from('profiles')
           .upsert(
             [{ uid: user.id, email: user.email, role: 'user' }],
-            { onConflict: ['uid', 'email'] }
+            { onConflict: ['uid'] }
           );
         if (upsertError) {
           showAlert('Error creating profile: ' + upsertError.message, 'danger');
           return;
         }
-        // 4) Re-fetch the profile
+        // Re-fetch the profile
         const { data: newProfile, error: newProfErr } = await supabase
           .from('profiles')
           .select('role')
@@ -97,7 +97,7 @@
         profile = newProfile;
       }
 
-      // 5) Redirect based on role
+      // 4) Redirect based on role
       if (profile.role === 'admin') {
         window.location.href = 'admin-dashboard.html';
       } else {
@@ -107,5 +107,3 @@
   </script>
 </body>
 </html>
-
-
