@@ -8,9 +8,9 @@
 
   <!-- 1) Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- 2) Your Supabase config (replace URL & key in this file) -->
+  <!-- 2) Your Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- 3) Common utilities (checkAuth, handleLogout, showAlert, etc.) -->
+  <!-- 3) Common utilities (checkAuth, showAlert, formatDate, handleLogout) -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -19,7 +19,7 @@
       <li><a href="dashboard.html" class="active">Dashboard</a></li>
       <li><a href="pantry.html">Pantry</a></li>
       <li><a href="shopping-list.html">Shopping List</a></li>
-      <li><a href="#" class="logout-btn">Logout</a></li>
+      <li><a href="#" class="logout-btn" onclick="handleLogout()">Logout</a></li>
     </ul>
   </nav>
 
@@ -35,7 +35,7 @@
       <h3>Notification Preferences</h3>
       <div class="form-group">
         <label>
-          <input type="checkbox" id="emailNotifications">
+          <input type="checkbox" id="emailNotifications" checked>
           Receive email notifications for expiring items
         </label>
       </div>
@@ -50,37 +50,22 @@
       </div>
     </div>
 
+    <!-- Dynamic Summary -->
+    <div class="card mt-2" style="padding: 1rem;">
+      <h3>Inventory Summary</h3>
+      <p>Total Items: <span id="totalItems">0</span></p>
+      <p>Items Expiring Soon: <span id="expiringItems">0</span></p>
+      <p>Low Stock Items: <span id="lowStockItems">0</span></p>
+    </div>
+
     <!-- Notifications Section -->
     <div id="notifications" class="mt-2">
-      <!-- Populated by your JS -->
+      <!-- Expiring-soon alerts will appear here -->
     </div>
 
-    <!-- Notification History -->
-    <div class="card mt-2" style="padding: 1rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h3>Notification History</h3>
-        <button class="btn btn-sm btn-outline-warning" onclick="/* your clearHistory() */">Clear History</button>
-      </div>
-      <div class="form-group">
-        <input type="text" id="historySearch" class="form-control" placeholder="Search notification history...">
-      </div>
-      <div class="table-responsive">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Item</th><th>Status</th><th>Expiration</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="notificationHistory">
-            <!-- Populated by your JS -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
+    <!-- Quick Actions & Admin Tools -->
     <div class="mt-2">
       <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px,1fr)); gap:1rem;">
-        <!-- Quick Actions -->
         <div class="card" style="padding:1rem;border:1px solid var(--border-color);border-radius:4px;">
           <h3>Quick Actions</h3>
           <ul style="list-style:none;padding:0;">
@@ -88,14 +73,6 @@
             <li><a href="shopping-list.html" class="btn btn-primary" style="width:100%;">View Shopping List</a></li>
           </ul>
         </div>
-        <!-- Summary -->
-        <div class="card" style="padding:1rem;border:1px solid var(--border-color);border-radius:4px;">
-          <h3>Inventory Summary</h3>
-          <p>Total Items: <span id="totalItems">0</span></p>
-          <p>Items Expiring Soon: <span id="expiringItems">0</span></p>
-          <p>Low Stock Items: <span id="lowStockItems">0</span></p>
-        </div>
-        <!-- Admin Tools -->
         <div id="adminFeatures"
              class="card admin-only"
              style="padding:1rem;border:1px solid var(--border-color);border-radius:4px;display:none;">
@@ -110,30 +87,69 @@
   </div>
 
   <script>
-    // On load: check auth, fetch profile, show user info & admin features
     document.addEventListener('DOMContentLoaded', async () => {
-      await checkAuth();  // from app.js
+      // 1) Ensure user is authenticated
+      await checkAuth();
 
-      // get current session & user
+      // 2) Get current user & profile
       const { data: { session } } = await supabase.auth.getSession();
       const user = session.user;
-
-      // fetch role
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('uid', user.id)
         .maybeSingle();
 
+      // 3) Display user info & admin features
       document.getElementById('userInfo').textContent =
         `Logged in as: ${user.email} (${profile?.role || 'user'})`;
-
-      // show admin tools if needed
       if (profile?.role === 'admin') {
         document.getElementById('adminFeatures').style.display = 'block';
       }
 
-      // TODO: load preferences, notifications, history, etc. from Supabase
+      // 4) Load and render summary & notifications
+      async function loadSummary() {
+        // Fetch all pantry items
+        const { data: items, error } = await supabase
+          .from('pantry_items')
+          .select('name, quantity, expiration_date')
+          .eq('uid', user.id);
+        if (error) return showAlert('Error loading summary: ' + error.message, 'danger');
+
+        // Compute totals
+        document.getElementById('totalItems').textContent = items.length;
+        document.getElementById('lowStockItems').textContent =
+          items.filter(i => i.quantity <= 1).length;
+
+        // Compute expiring-soon
+        const days = parseInt(document.getElementById('notificationDays').value, 10);
+        const today = new Date();
+        const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+        const expiring = items.filter(i =>
+          i.expiration_date &&
+          new Date(i.expiration_date) <= cutoff
+        );
+        document.getElementById('expiringItems').textContent = expiring.length;
+
+        // Render expiring notifications
+        const notifEl = document.getElementById('notifications');
+        notifEl.innerHTML = '';
+        expiring.forEach(i => {
+          const div = document.createElement('div');
+          div.className = 'alert alert-warning';
+          div.textContent = `${i.name} expires on ${formatDate(i.expiration_date)}`;
+          notifEl.appendChild(div);
+        });
+      }
+
+      // Re-load summary when preferences change
+      document.getElementById('notificationDays')
+              .addEventListener('change', loadSummary);
+      document.getElementById('emailNotifications')
+              .addEventListener('change', loadSummary);
+
+      // Initial summary load
+      await loadSummary();
     });
   </script>
 </body>
