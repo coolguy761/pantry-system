@@ -40,10 +40,6 @@
       <h2>Create Custom Shopping List</h2>
       <form id="createListForm">
         <div class="form-group">
-          <label for="listName">List Name</label>
-          <input type="text" id="listName" class="form-control" required>
-        </div>
-        <div class="form-group">
           <label for="listItems">Items (one per line)</label>
           <textarea id="listItems" class="form-control" rows="5" required></textarea>
         </div>
@@ -73,23 +69,29 @@
 
       async function loadLists() {
         const { data, error } = await supabase
-          .from('shopping_lists').select('list_id,name,items,creation_date')
-          .eq('uid', user.id).order('creation_date', { ascending: false });
+          .from('shopping_lists')
+          .select('list_id, items, creation_date')
+          .eq('uid', user.id)
+          .order('creation_date', { ascending: false });
         if (error) return showAlert('Error loading lists: ' + error.message, 'danger');
-        shoppingLists = data.map(l => ({ id: l.list_id, name: l.name, items: l.items, date: l.creation_date }));
+        shoppingLists = data.map(l => ({
+          id: l.list_id,
+          items: l.items,
+          date: l.creation_date
+        }));
         displayLists(shoppingLists);
       }
-      window.loadLists = loadLists;
 
       function displayLists(lists) {
         const container = document.getElementById('shoppingLists');
         container.innerHTML = '';
         lists.forEach(list => {
           const div = document.createElement('div');
-          div.className = 'card'; div.style.marginBottom = '1rem';
+          div.className = 'card';
+          div.style.marginBottom = '1rem';
           div.innerHTML = `
             <div style="padding:1rem;">
-              <h3>${list.name}</h3>
+              <h3>List #${list.id}</h3>
               <p>Created: ${formatDate(list.date)}</p>
               <p>Items: ${list.items.length}</p>
               <div class="mt-2">
@@ -104,55 +106,66 @@
       window.generateShoppingList = async function() {
         const today = new Date().toISOString().slice(0,10);
         const { data: lowItems, error: e1 } = await supabase
-          .from('pantry_items').select('name').eq('uid',user.id)
-          .or(\`quantity.eq.0,expiration_date.lte.\${today}\`);
-        if (e1) return showAlert('Error generating: '+e1.message,'danger');
-        const itemNames = lowItems.map(i=>i.name);
-        const { error: e2 } = await supabase.from('shopping_lists')
-          .insert([{ uid:user.id, name:'Auto-generated List', items:itemNames }]);
-        if (e2) return showAlert('Error saving generated list: '+e2.message,'danger');
+          .from('pantry_items')
+          .select('name')
+          .eq('uid', user.id)
+          .or(`quantity.eq.0,expiration_date.lte.${today}`);
+        if (e1) return showAlert('Error generating: ' + e1.message, 'danger');
+        const itemNames = lowItems.map(i => i.name);
+        const { error: e2 } = await supabase
+          .from('shopping_lists')
+          .insert([{ uid: user.id, items: itemNames, creation_date: new Date().toISOString() }]);
+        if (e2) return showAlert('Error saving generated list: ' + e2.message, 'danger');
+
         await logActivity('Generate Shopping List', JSON.stringify(itemNames));
-        showAlert('Shopping list generated','success');
+        showAlert('Shopping list generated', 'success');
         await loadLists();
       };
 
       document.getElementById('createListForm').onsubmit = async e => {
         e.preventDefault();
-        const name = document.getElementById('listName').value.trim();
-        const items = document.getElementById('listItems').value.split('\n').map(s=>s.trim()).filter(Boolean);
-        const { error } = await supabase.from('shopping_lists')
-          .insert([{ uid:user.id, name, items }]);
-        if (error) return showAlert('Error creating list: '+error.message,'danger');
-        await logActivity('Create Shopping List', name);
+        const items = document.getElementById('listItems').value
+                        .split('\n').map(s => s.trim()).filter(Boolean);
+        const { error } = await supabase
+          .from('shopping_lists')
+          .insert([{ uid: user.id, items, creation_date: new Date().toISOString() }]);
+        if (error) return showAlert('Error creating list: ' + error.message, 'danger');
+
+        await logActivity('Create Shopping List', JSON.stringify(items));
         hideModal('createListModal');
-        showAlert('Shopping list created','success');
+        showAlert('Shopping list created', 'success');
         await loadLists();
       };
 
       window.viewList = id => {
-        const list = shoppingLists.find(l=>l.id===id);
+        const list = shoppingLists.find(l => l.id === id);
         if (!list) return;
-        document.getElementById('viewListTitle').textContent = list.name;
+        document.getElementById('viewListTitle').textContent = `List #${list.id}`;
         document.getElementById('viewListItems').innerHTML = `
           <p>Created: ${formatDate(list.date)}</p>
-          <ul style="list-style:none;padding:0;">${list.items.map(item=>\`<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-color);">\${item}</li>\`).join('')}</ul>`;
+          <ul style="list-style:none;padding:0;">
+            ${list.items.map(item => `<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-color);">${item}</li>`).join('')}
+          </ul>`;
         showModal('viewListModal');
       };
 
       window.deleteList = async id => {
         if (!confirm('Delete this list?')) return;
-        const { error } = await supabase.from('shopping_lists').delete().eq('list_id',id);
-        if (error) return showAlert('Error deleting list: '+error.message,'danger');
-        await logActivity('Delete Shopping List', \`ID: \${id}\`);
-        showAlert('List deleted','success');
+        const { error } = await supabase
+          .from('shopping_lists')
+          .delete()
+          .eq('list_id', id);
+        if (error) return showAlert('Error deleting list: ' + error.message, 'danger');
+
+        await logActivity('Delete Shopping List', `ID: ${id}`);
+        showAlert('List deleted', 'success');
         await loadLists();
       };
 
       document.getElementById('searchInput').addEventListener('input', e => {
         const q = e.target.value.toLowerCase();
         displayLists(shoppingLists.filter(l =>
-          l.name.toLowerCase().includes(q) ||
-          l.items.some(i=>i.toLowerCase().includes(q))
+          l.items.some(i => i.toLowerCase().includes(q))
         ));
       });
 
