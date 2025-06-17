@@ -1,28 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Pantry Inventory Management</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login &ndash; Pantry Inventory Management</title>
+  <link rel="stylesheet" href="styles.css" />
+
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Your Supabase config -->
+  <!-- Your Supabase configuration -->
   <script src="supabase-config.js"></script>
-  <!-- App utilities (modals, alerts, validation) -->
+  <!-- Your common utilities (showAlert, checkAuth, etc.) -->
   <script src="app.js"></script>
 </head>
 <body>
-  <!-- Navigation Bar -->
+  <!-- Navigation -->
   <nav class="navbar">
     <ul class="nav-list">
-      <li><a href="index.html">Login</a></li>
+      <li><a href="index.html" class="active">Login</a></li>
       <li><a href="signup.html">Sign Up</a></li>
     </ul>
   </nav>
 
   <div class="container">
-    <!-- Alert container -->
+    <!-- Placeholder for styled alerts -->
     <div id="alertContainer"></div>
 
     <div class="text-center mt-2">
@@ -30,72 +31,69 @@
       <p>Please log in to continue</p>
     </div>
 
-    <div style="max-width: 400px; margin: 2rem auto;">
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" class="form-control" placeholder="you@example.com" required>
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" class="form-control" placeholder="••••••••" required>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
-      </form>
-
-      <div class="text-center mt-2">
-        <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
-        <p><a href="reset-password.html">Forgot your password?</a></p>
+    <form id="loginForm" style="max-width:400px;margin:2rem auto;">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" class="form-control" placeholder="you@example.com" required />
       </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" class="form-control" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Log In</button>
+    </form>
+
+    <div class="text-center mt-2">
+      <p>Don't have an account? <a href="signup.html">Sign Up Here</a></p>
+      <p><a href="reset-password.html">Forgot your password?</a></p>
     </div>
   </div>
 
   <script>
-    // Show styled alerts in alertContainer
-    function showAlert(message, type) {
-      const container = document.getElementById('alertContainer');
-      const alertDiv = document.createElement('div');
-      alertDiv.className = `alert alert-${type}`;
-      alertDiv.textContent = message;
-      container.innerHTML = '';
-      container.appendChild(alertDiv);
-    }
-
-    document.getElementById('loginForm').onsubmit = async function(e) {
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const email = document.getElementById('email').value;
+      const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      // Sign in with Supabase
-      const { data: { user }, error: signInError } =
+      // 1) Sign in
+      const { data: { user, session }, error: signInError } =
         await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
         showAlert('Login failed: ' + signInError.message, 'danger');
         return;
       }
 
-      // Fetch user role from profiles
-      const { data: profile, error: profileError } =
-        await supabase
-          .from('profiles')
-          .select('role')
-          .eq('uid', user.id)
-          .maybeSingle();
+      // 2) Try to read their profile
+      let { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('uid', user.id)
+        .maybeSingle();
       if (profileError) {
         showAlert('Error loading profile: ' + profileError.message, 'danger');
-        await supabase.auth.signOut();
         return;
       }
 
-      // Redirect based on role
-      if (profile.role === 'admin') {
-        window.location = 'admin-dashboard.html';
-      } else {
-        window.location = 'dashboard.html';
+      // 3) If no profile row exists (maybe trigger wasn’t set), insert one
+      if (!profile) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ uid: user.id, email: user.email, role: 'user' }]);
+        if (insertError) {
+          showAlert('Error creating profile: ' + insertError.message, 'danger');
+          return;
+        }
+        profile = { role: 'user' };
       }
-    };
+
+      // 4) Redirect based on role
+      if (profile.role === 'admin') {
+        window.location.href = 'admin-dashboard.html';
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    });
   </script>
 </body>
 </html>
+
