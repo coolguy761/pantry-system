@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login &ndash; Pantry Inventory Management</title>
+  <title>Login – Pantry Inventory Management</title>
   <link rel="stylesheet" href="styles.css" />
 
   <!-- Supabase JS SDK -->
@@ -62,45 +62,24 @@
       }
 
       // 2) Try to read their profile
-      let { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('uid', user.id)
-        .maybeSingle();
-      if (profileError) {
-        showAlert('Error loading profile: ' + profileError.message, 'danger');
-        return;
-      }
-
-      // 3) Upsert on email (so existing rows are updated, new ones created)
-      if (!profile) {
-        const { error: upsertError } = await supabase
-          .from('profiles')
-          .upsert(
-            [{ uid: user.id, email: user.email, role: 'user' }],
-            { onConflict: ['email'] }
-          );
-        if (upsertError) {
-          showAlert('Error creating profile: ' + upsertError.message, 'danger');
-          return;
-        }
-        // 4) Re-fetch to get the role
-        const { data: newProfile, error: newProfErr } = await supabase
+      let profile;
+      try {
+        const res = await supabase
           .from('profiles')
           .select('role')
           .eq('uid', user.id)
           .maybeSingle();
-        if (newProfErr) {
-          showAlert('Error loading profile: ' + newProfErr.message, 'danger');
-          return;
-        }
-        profile = newProfile;
+        if (res.error) throw res.error;
+        profile = res.data;
+      } catch (err) {
+        console.error('Profile fetch failed, defaulting to user role:', err);
+        profile = { role: 'user' };
       }
 
-      // ✨ Store the role so isAdmin() works
-      sessionStorage.setItem('userRole', profile.role);
+      // 3) Store the role so isAdmin() works
+      sessionStorage.setItem('userRole', profile.role || 'user');
 
-      // 5) Redirect based on role
+      // 4) Redirect based on role
       if (profile.role === 'admin') {
         window.location.href = 'admin-dashboard.html';
       } else {
@@ -110,3 +89,4 @@
   </script>
 </body>
 </html>
+
