@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <!-- 2) Your Supabase config (must define window.supabase) -->
   <script src="supabase-config.js"></script>
-  <!-- 3) Your common utilities (checkAuth, showAlert, formatDate, showModal, hideModal, handleLogout) -->
+  <!-- 3) Your common utilities (checkAuth, showAlert, formatDate, showModal, hideModal, handleLogout, logActivity) -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -135,6 +135,7 @@
           .delete()
           .eq('item_id', id);
         if (error) return showAlert('Delete failed: ' + error.message, 'danger');
+        await logActivity('Delete Pantry Item', `ID: ${id}`);
         showAlert('Item deleted', 'success');
         await loadPantry();
       };
@@ -158,6 +159,7 @@
           .from('pantry_items')
           .insert([{ uid: userId, name, quantity, expiration_date }]);
         if (error) return showAlert('Add failed: ' + error.message, 'danger');
+        await logActivity('Add Pantry Item', `Name: ${name}, Qty: ${quantity}, Exp: ${expiration_date}`);
         hideModal('addItemModal');
         showAlert('Item added', 'success');
         await loadPantry();
@@ -175,6 +177,7 @@
           .update({ name, quantity, expiration_date })
           .eq('item_id', id);
         if (error) return showAlert('Update failed: ' + error.message, 'danger');
+        await logActivity('Edit Pantry Item', `ID: ${id}, New Qty: ${quantity}`);
         hideModal('editItemModal');
         showAlert('Item updated', 'success');
         await loadPantry();
@@ -183,9 +186,7 @@
       // Search filtering
       document.getElementById('searchInput').addEventListener('input', e => {
         const q = e.target.value.toLowerCase();
-        displayItems(items.filter(i =>
-          i.name.toLowerCase().includes(q)
-        ));
+        displayItems(items.filter(i => i.name.toLowerCase().includes(q)));
       });
 
       // initial load

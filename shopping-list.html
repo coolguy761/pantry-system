@@ -1,4 +1,3 @@
-<!-- shopping-list.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js" type="module"></script>
+  <script src="app.js"></script>
 </head>
 <body>
   <nav class="navbar">
@@ -48,7 +47,7 @@
           <label for="listItems">Items (one per line)</label>
           <textarea id="listItems" class="form-control" rows="5" required></textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Create List</button>
+        <button class="btn btn-primary" type="submit">Create List</button>
       </form>
     </div>
   </div>
@@ -65,9 +64,7 @@
     </div>
   </div>
 
-  <script type="module">
-    import { logActivity } from './app.js';
-
+  <script>
     document.addEventListener('DOMContentLoaded', async () => {
       await checkAuth();
       const { data: { session } } = await supabase.auth.getSession();
@@ -108,11 +105,11 @@
         const today = new Date().toISOString().slice(0,10);
         const { data: lowItems, error: e1 } = await supabase
           .from('pantry_items').select('name').eq('uid',user.id)
-          .or(`quantity.eq.0,expiration_date.lte.${today}`);
+          .or(\`quantity.eq.0,expiration_date.lte.\${today}\`);
         if (e1) return showAlert('Error generating: '+e1.message,'danger');
         const itemNames = lowItems.map(i=>i.name);
         const { error: e2 } = await supabase.from('shopping_lists')
-          .insert([{ uid:user.id, name:'Auto-generated List', items:itemNames, creation_date:new Date().toISOString() }]);
+          .insert([{ uid:user.id, name:'Auto-generated List', items:itemNames }]);
         if (e2) return showAlert('Error saving generated list: '+e2.message,'danger');
         await logActivity('Generate Shopping List', JSON.stringify(itemNames));
         showAlert('Shopping list generated','success');
@@ -124,7 +121,7 @@
         const name = document.getElementById('listName').value.trim();
         const items = document.getElementById('listItems').value.split('\n').map(s=>s.trim()).filter(Boolean);
         const { error } = await supabase.from('shopping_lists')
-          .insert([{ uid:user.id, name, items, creation_date:new Date().toISOString() }]);
+          .insert([{ uid:user.id, name, items }]);
         if (error) return showAlert('Error creating list: '+error.message,'danger');
         await logActivity('Create Shopping List', name);
         hideModal('createListModal');
@@ -138,7 +135,7 @@
         document.getElementById('viewListTitle').textContent = list.name;
         document.getElementById('viewListItems').innerHTML = `
           <p>Created: ${formatDate(list.date)}</p>
-          <ul style="list-style:none;padding:0;">${list.items.map(item=>`<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-color);">${item}</li>`).join('')}</ul>`;
+          <ul style="list-style:none;padding:0;">${list.items.map(item=>\`<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-color);">\${item}</li>\`).join('')}</ul>`;
         showModal('viewListModal');
       };
 
@@ -146,12 +143,10 @@
         if (!confirm('Delete this list?')) return;
         const { error } = await supabase.from('shopping_lists').delete().eq('list_id',id);
         if (error) return showAlert('Error deleting list: '+error.message,'danger');
-        await logActivity('Delete Shopping List', id.toString());
+        await logActivity('Delete Shopping List', \`ID: \${id}\`);
         showAlert('List deleted','success');
         await loadLists();
       };
-
-      window.printList = () => { /* unchanged */ };
 
       document.getElementById('searchInput').addEventListener('input', e => {
         const q = e.target.value.toLowerCase();
@@ -166,4 +161,3 @@
   </script>
 </body>
 </html>
-
