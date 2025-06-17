@@ -8,9 +8,9 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Your Supabase configuration -->
+  <!-- Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- Your common utilities (showAlert, isAdmin, etc.) -->
+  <!-- App utilities -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -48,13 +48,16 @@
   </div>
 
   <script>
+    // Replace with your actual admin email
+    const ADMIN_EMAIL = 'josephwilliams8603@gmail.com';
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
       // 1) Sign in
-      const { data: { user, session }, error: signInError } =
+      const { data: { user }, error: signInError } =
         await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
         showAlert('Login failed: ' + signInError.message, 'danger');
@@ -62,25 +65,28 @@
       }
 
       // 2) Try to read their profile
-      let profile;
+      let role = 'user';
       try {
-        const res = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('uid', user.id)
           .maybeSingle();
-        if (res.error) throw res.error;
-        profile = res.data;
+        if (profile && profile.role) {
+          role = profile.role;
+        }
       } catch (err) {
-        console.error('Profile fetch failed, defaulting to user role:', err);
-        profile = { role: 'user' };
+        console.error('Profile fetch failed:', err);
       }
 
-      // 3) Store the role so isAdmin() works
-      sessionStorage.setItem('userRole', profile.role || 'user');
+      // 3) if this is the known admin email, force admin
+      if (email === ADMIN_EMAIL) {
+        role = 'admin';
+      }
 
-      // 4) Redirect based on role
-      if (profile.role === 'admin') {
+      // 4) Store and redirect
+      sessionStorage.setItem('userRole', role);
+      if (role === 'admin') {
         window.location.href = 'admin-dashboard.html';
       } else {
         window.location.href = 'dashboard.html';
@@ -89,4 +95,3 @@
   </script>
 </body>
 </html>
-
