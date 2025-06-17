@@ -119,8 +119,8 @@
                 <p>Qty: ${item.quantity} | Exp: ${item.expiration_date ? formatDate(item.expiration_date) : '—'}</p>
               </div>
               <div>
-                <button class="btn btn-sm btn-outline-primary" onclick="openEdit(${item.item_id}, '${item.name}', ${item.quantity}, '${item.expiration_date || ''}')">Edit</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${item.item_id})">Delete</button>
+                <button class="btn btn-sm btn-success" onclick="openEdit(${item.item_id}, '${item.name}', ${item.quantity}, '${item.expiration_date || ''}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.item_id})">Delete</button>
               </div>
             </div>`;
           container.appendChild(card);
