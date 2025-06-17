@@ -26,10 +26,13 @@
         const auth = getAuth(app);
 
         // Make auth and functions available globally
-        window.auth = auth;
+        
         window.confirmPasswordReset = confirmPasswordReset;
         window.verifyPasswordResetCode = verifyPasswordResetCode;
     </script>
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
     <div class="container">
@@ -146,5 +149,6 @@
         // Make handleConfirmReset available globally
         window.handleConfirmReset = handleConfirmReset;
     </script>
+<script type="module" src="app.js"></script>
 </body>
 </html> 

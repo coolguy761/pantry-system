@@ -76,20 +76,15 @@
         return;
       }
 
-      // Fetch user role from profiles (allow zero or one row)
+      // Fetch user role from profiles
       const { data: profile, error: profileError } =
         await supabase
           .from('profiles')
           .select('role')
           .eq('uid', user.id)
-          .maybeSingle();
+          .single();
       if (profileError) {
         showAlert('Error loading profile: ' + profileError.message, 'danger');
-        await supabase.auth.signOut();
-        return;
-      }
-      if (!profile) {
-        showAlert('No profile found. Please sign up first.', 'warning');
         await supabase.auth.signOut();
         return;
       }

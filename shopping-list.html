@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopping List - Pantry Inventory Management</title>
     <link rel="stylesheet" href="styles.css">
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -198,11 +201,15 @@
                             ul { list-style: none; padding: 0; }
                             li { padding: 5px 0; border-bottom: 1px solid #ddd; }
                         </style>
-                    </head>
+                    <!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase-config.js"></script>
+</head>
                     <body>
                         <h1>${listTitle}</h1>
                         ${listItems}
-                    </body>
+                    <script type="module" src="app.js"></script>
+</body>
                 </html>
             `);
 
@@ -225,5 +232,6 @@
             displayLists(shoppingLists);
         });
     </script>
+<script type="module" src="app.js"></script>
 </body>
 </html> 

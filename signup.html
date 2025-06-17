@@ -1,112 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign Up - Pantry Inventory Management</title>
-  <link rel="stylesheet" href="styles.css">
-  <!-- Supabase JS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Your Supabase config -->
-  <script src="supabase-config.js"></script>
-  <!-- App utilities (modals, alerts, validation) -->
-  <script src="app.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Pantry Inventory Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
-  <!-- Navigation Bar -->
-  <nav class="navbar">
-    <ul class="nav-list">
-      <li><a href="index.html">Login</a></li>
-      <li><a href="signup.html">Sign Up</a></li>
-    </ul>
-  </nav>
+    <div class="container">
+        <div class="text-center mt-2">
+            <h1>Create an Account</h1>
+            <p>Join our Pantry Inventory Management System</p>
+        </div>
 
-  <div class="container">
-    <!-- Alert container -->
-    <div id="alertContainer"></div>
+        <div style="max-width: 400px; margin: 2rem auto;">
+            <form id="signupForm">
+                <div class="form-group">
+                    <label for="fullName">Full Name</label>
+                    <input type="text" id="fullName" class="form-control" required>
+                </div>
 
-    <div class="text-center mt-2">
-      <h1>Create an Account</h1>
-      <p>Join our Pantry Inventory Management System</p>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                    <div id="passwordStrength"></div>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-control" required>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+            </form>
+
+            <div class="text-center mt-2">
+                <p>Already have an account? <a href="login.html">Login here</a></p>
+            </div>
+        </div>
     </div>
 
-    <div style="max-width: 400px; margin: 2rem auto;">
-      <form id="signupForm">
-        <div class="form-group">
-          <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" class="form-control" required>
-        </div>
 
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" class="form-control" required>
-        </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" class="form-control" required>
-          <div id="passwordStrength"></div>
-          <div class="invalid-feedback"></div>
-        </div>
-
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input type="password" id="confirmPassword" class="form-control" required>
-          <div class="invalid-feedback"></div>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
-      </form>
-
-      <div class="text-center mt-2">
-        <p>Already have an account? <a href="index.html">Login here</a></p>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Show styled alerts in alertContainer
-    function showAlert(message, type) {
-      const container = document.getElementById('alertContainer');
-      const alertDiv = document.createElement('div');
-      alertDiv.className = `alert alert-${type}`;
-      alertDiv.textContent = message;
-      container.innerHTML = '';
-      container.appendChild(alertDiv);
+<script>
+// Supabase signup and profile creation
+document.getElementById('signupForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const fullName = document.getElementById('fullName').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirmPassword').value;
+    if (password !== confirm) {
+        alert('Passwords do not match');
+        return;
     }
-
-    document.getElementById('signupForm').onsubmit = async function(e) {
-      e.preventDefault();
-      const fullName = document.getElementById('fullName').value;
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const confirm = document.getElementById('confirmPassword').value;
-
-      if (password !== confirm) {
-        showAlert('Passwords do not match', 'warning');
+    const { data: { user }, error: signError } = await supabase.auth.signUp({ email, password });
+    if (signError) {
+        alert(signError.message);
         return;
-      }
-
-      // Sign up with Supabase
-      const { data: { user }, error: signError } =
-        await supabase.auth.signUp({ email, password });
-      if (signError) {
-        showAlert(signError.message, 'danger');
-        return;
-      }
-
-      // Insert profile record
-      const { error: profError } = await supabase
+    }
+    const { error: profError } = await supabase
         .from('profiles')
         .insert([{ uid: user.id, email: user.email, role: 'user' }]);
-      if (profError) {
-        showAlert(profError.message, 'danger');
+    if (profError) {
+        alert(profError.message);
         return;
-      }
+    }
+    alert('Account created! Redirecting to login...');
+    setTimeout(() => window.location = 'index.html', 1500);
+};
+</script>
 
-      showAlert('Account created! Redirecting to dashboard...', 'success');
-      setTimeout(() => window.location.href = 'dashboard.html', 1500);
-    };
-  </script>
 </body>
-</html>
+</html> 

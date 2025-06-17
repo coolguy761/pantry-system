@@ -1,107 +1,168 @@
-// app.js
-// ───────────────────────────────────────────────────────────────────────────────
-// Import your Supabase client (from supabase-config.js)
-import { supabase } from './supabase-config.js';
+// Common utility functions and event handlers
 
-// ─── Modal handling ─────────────────────────────────────────────────────────────
-export function showModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'block';
+// Modal handling
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'block';
+    }
 }
 
-export function hideModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'none';
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Close modal when clicking outside
-window.addEventListener('click', e => {
-  if (e.target.classList.contains('modal')) {
-    e.target.style.display = 'none';
-  }
-});
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
 
-// ─── Form validation ────────────────────────────────────────────────────────────
-export function validateForm(formId) {
-  const form = document.getElementById(formId);
-  if (!form) return false;
-  let valid = true;
-  form.querySelectorAll('input[required], select[required], textarea[required]')
-      .forEach(input => {
+// Form validation
+function validateForm(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return false;
+
+    const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+    let isValid = true;
+
+    inputs.forEach(input => {
         if (!input.value.trim()) {
-          valid = false;
-          input.classList.add('error');
+            isValid = false;
+            input.classList.add('error');
         } else {
-          input.classList.remove('error');
+            input.classList.remove('error');
         }
-      });
-  return valid;
+    });
+
+    return isValid;
 }
 
-// ─── Styled alerts ─────────────────────────────────────────────────────────────
-export function showAlert(message, type = 'success') {
-  const container = document.querySelector('.container') || document.body;
-  const alertDiv = document.createElement('div');
-  alertDiv.className = `alert alert-${type}`;
-  alertDiv.textContent = message;
-  container.insertBefore(alertDiv, container.firstChild);
-  setTimeout(() => alertDiv.remove(), 3000);
+// Show alert message
+function showAlert(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    // Remove alert after 3 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
 }
 
-// ─── Date formatting ───────────────────────────────────────────────────────────
-export function formatDate(dateString) {
-  const opts = { year: 'numeric', month: 'short', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString(undefined, opts);
+// Format date for display
+function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
 }
 
-// ─── Role checking ──────────────────────────────────────────────────────────────
-export function isAdmin() {
-  return sessionStorage.getItem('userRole') === 'admin';
+// Check if user is admin
+function isAdmin() {
+    const userRole = localStorage.getItem('userRole');
+    return userRole === 'admin';
 }
 
-// ─── Logout handler ────────────────────────────────────────────────────────────
-export async function handleLogout() {
-  await supabase.auth.signOut();
-  sessionStorage.clear();
-  window.location.href = 'index.html';
+// Handle logout
+function handleLogout() {
+    auth.signOut()
+        .then(() => {
+            localStorage.removeItem('userRole');
+            window.location.href = 'login.html';
+        })
+        .catch(error => {
+            showAlert('Logout failed: ' + error.message, 'danger');
+        });
 }
 
-// ─── Auth guard ────────────────────────────────────────────────────────────────
-export async function checkAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    window.location.href = 'index.html';
-  }
-}
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners for modals
+    const closeButtons = document.querySelectorAll('.close');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const modal = this.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
 
-// ─── Page init ─────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  // 1) Run RLS guard on protected pages
-  if (!['index.html','signup.html','reset-password.html','confirm-reset.html']
-        .some(p => location.pathname.endsWith(p))) {
+    // Add form validation listeners
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (!validateForm(this.id)) {
+                e.preventDefault();
+                showAlert('Please fill in all required fields', 'danger');
+            }
+        });
+    });
+
+    // Show/hide admin elements based on role
+    const adminElements = document.querySelectorAll('.admin-only');
+    adminElements.forEach(element => {
+        element.style.display = isAdmin() ? 'block' : 'none';
+    });
+
     checkAuth();
-  }
-
-  // 2) Wire up modal close buttons
-  document.querySelectorAll('.close').forEach(btn =>
-    btn.addEventListener('click', () => {
-      const m = btn.closest('.modal');
-      if (m) m.style.display = 'none';
-    })
-  );
-
-  // 3) Simple form-validation hook
-  document.querySelectorAll('form').forEach(f =>
-    f.addEventListener('submit', e => {
-      if (!validateForm(f.id)) {
-        e.preventDefault();
-        showAlert('Please fill in all required fields', 'danger');
-      }
-    })
-  );
-
-  // 4) Show/hide admin-only UI
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdmin() ? 'block' : 'none';
-  });
 });
+
+// Firebase configuration
+const firebaseConfig = {
+    // Your Firebase configuration here
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Check if user is logged in
+function checkAuth() {
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            window.location.href = 'login.html';
+        }
+    });
+}
+
+// Handle login
+function handleLogin(event) {
+    event.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then(userCredential => {
+            // Get user role from Firestore
+            db.collection('users').doc(userCredential.user.uid).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        localStorage.setItem('userRole', userData.role);
+                        window.location.href = 'dashboard.html';
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error getting user data: ' + error.message, 'danger');
+                });
+        })
+        .catch(error => {
+            showAlert('Login failed: ' + error.message, 'danger');
+        });
+}
+
+// Format currency
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+    }).format(amount);
+} 

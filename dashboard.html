@@ -33,11 +33,14 @@
         const analytics = getAnalytics(app);
 
         // Make Firebase services available globally
-        window.auth = auth;
+        
         window.db = db;
         window.storage = storage;
         window.analytics = analytics;
     </script>
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -146,7 +149,7 @@
         </div>
     </div>
 
-    <script src="firebase-config.js"></script>
+    
     <script src="app.js"></script>
     <script>
         // Check user role and display appropriate features
@@ -449,5 +452,6 @@
             });
         });
     </script>
+<script type="module" src="app.js"></script>
 </body>
 </html> 
