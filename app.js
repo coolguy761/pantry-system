@@ -1,6 +1,17 @@
 // app.js
 // Common utility functions and event handlers
 
+// 1) Logging helper
+export async function logActivity(type, details = '') {
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  if (!session) return;
+  const uid = session.user.id;
+  supabase
+    .from('logs')
+    .insert([{ uid, activity_type: type, details }])
+    .catch(err => console.error('Logging error:', err.message));
+}
+
 // Modal handling
 function showModal(modalId) {
   const modal = document.getElementById(modalId);
