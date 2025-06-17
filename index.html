@@ -1,126 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Pantry Inventory Management</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Firebase SDK -->
-    
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="supabase-config.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Pantry Inventory Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Your Supabase config -->
+  <script src="supabase-config.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="text-center mt-2">
-            <h1>Pantry Inventory Management</h1>
-            <p>Please login to continue</p>
-        </div>
-
-        <div style="max-width: 400px; margin: 2rem auto;">
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="role">Login As</label>
-                    <select id="role" class="form-control" required>
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
-            </form>
-
-            <div class="text-center mt-2">
-                <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
-                <p><a href="reset-password.html">Forgot your password?</a></p>
-            </div>
-        </div>
+  <div class="container">
+    <div class="text-center mt-2">
+      <h1>Pantry Inventory Management</h1>
+      <p>Please log in to continue</p>
     </div>
 
-    <script>
-        async function handleLogin(event) {
-            event.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const role = document.getElementById('role').value;
+    <div style="max-width: 400px; margin: 2rem auto;">
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com" required>
+        </div>
 
-            try {
-                // Sign in with Firebase Authentication
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+        </div>
 
-                // Get user profile from Firestore
-                const userProfile = await getUserProfile(user.uid);
-                
-                if (userProfile) {
-                    // Check if the user's role matches the selected role
-                    if (userProfile.role !== role) {
-                        showAlert('Invalid role selected', 'danger');
-                        return false;
-                    }
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
+      </form>
 
-                    // Update last login time
-                    await updateUserProfile(user.uid, {
-                        lastLogin: new Date().toISOString()
-                    });
+      <div class="text-center mt-2">
+        <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
+        <p><a href="reset-password.html">Forgot your password?</a></p>
+      </div>
+    </div>
+  </div>
 
-                    // Store minimal user info in sessionStorage (not localStorage)
-                    sessionStorage.setItem('userRole', userProfile.role);
-                    sessionStorage.setItem('userEmail', userProfile.email);
-                    sessionStorage.setItem('userName', userProfile.fullName);
-                    
-                    // Redirect to dashboard
-                    window.location.href = 'dashboard.html';
-                } else {
-                    showAlert('Error retrieving user profile', 'danger');
-                }
-            } catch (error) {
-                showAlert(error.message, 'danger');
-            }
+  <script>
+    document.getElementById('loginForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
 
-            return false;
-        }
-    </script>
-
-<script>
-// Supabase login and role verification
-document.getElementById('loginForm').onsubmit = async function(e) {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const role = document.getElementById('role').value;
-    const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        alert(error.message);
+      // Sign in with Supabase
+      const { data: { user }, error: signInError } =
+        await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        alert('Login failed: ' + signInError.message);
         return;
-    }
-    const { data: profile, error: profError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('uid', user.id)
-        .single();
-    if (profError || profile.role !== role) {
-        alert('Invalid role selected');
+      }
+
+      // Fetch user role from profiles
+      const { data: profile, error: profileError } =
+        await supabase
+          .from('profiles')
+          .select('role')
+          .eq('uid', user.id)
+          .single();
+      if (profileError) {
+        alert('Error loading profile: ' + profileError.message);
         await supabase.auth.signOut();
         return;
-    }
-    sessionStorage.setItem('userRole', profile.role);
-    sessionStorage.setItem('userEmail', profile.email);
-    sessionStorage.setItem('userName', profile.email);
-    window.location = profile.role === 'admin' ? 'admin-dashboard.html' : 'dashboard.html';
-};
-</script>
+      }
 
+      // Redirect based on role
+      if (profile.role === 'admin') {
+        window.location = 'admin-dashboard.html';
+      } else {
+        window.location = 'dashboard.html';
+      }
+    };
+  </script>
 </body>
-</html> 
+</html>
