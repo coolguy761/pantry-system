@@ -14,14 +14,6 @@
   <script src="app.js"></script>
 </head>
 <body>
-  <script>
-    // Client‐side guard: only admins may proceed
-    const role = sessionStorage.getItem('userRole');
-    if (role !== 'admin') {
-      window.location.href = 'dashboard.html';
-    }
-  </script>
-
   <nav class="navbar">
     <ul class="nav-list">
       <li><a href="dashboard.html">Dashboard</a></li>
@@ -102,7 +94,15 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      await checkAuth(); // ensure we’re logged in
+      // 1) Ensure user is authenticated
+      await checkAuth();
+
+      // 2) Only admins may proceed
+      const role = sessionStorage.getItem('userRole');
+      if (role !== 'admin') {
+        window.location.href = 'dashboard.html';
+        return;
+      }
 
       let allUsers = [];
 
@@ -201,3 +201,4 @@
   </script>
 </body>
 </html>
+
