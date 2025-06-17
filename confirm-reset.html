@@ -1,154 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password - Pantry Inventory Management</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, confirmPasswordReset, verifyPasswordResetCode } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyD5lzUpzxOFajjIuBVDOpQAQGrkBdkkP2w",
-            authDomain: "pantry-system-108d4.firebaseapp.com",
-            projectId: "pantry-system-108d4",
-            storageBucket: "pantry-system-108d4.firebasestorage.app",
-            messagingSenderId: "928343271258",
-            appId: "1:928343271258:web:c802701c1b144042913563",
-            measurementId: "G-R6GJZZCTJH"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        // Make auth and functions available globally
-        
-        window.confirmPasswordReset = confirmPasswordReset;
-        window.verifyPasswordResetCode = verifyPasswordResetCode;
-    </script>
-<!-- Supabase JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="supabase-config.js"></script>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Set New Password – Pantry Inventory Management</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Your Supabase client config -->
+  <script src="supabase-config.js"></script>
+  <!-- Your app helpers (defines showAlert, checkAuth, etc.) -->
+  <script src="app.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="text-center mt-2">
-            <h1>Set New Password</h1>
-            <p>Please enter your new password</p>
-        </div>
-
-        <div style="max-width: 400px; margin: 2rem auto;">
-            <form id="resetForm" onsubmit="return handleConfirmReset(event)">
-                <div class="form-group">
-                    <label for="password">New Password</label>
-                    <input type="password" id="password" class="form-control" required>
-                    <div id="passwordStrength"></div>
-                    <div class="invalid-feedback"></div>
-                </div>
-
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm New Password</label>
-                    <input type="password" id="confirmPassword" class="form-control" required>
-                    <div class="invalid-feedback"></div>
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
-            </form>
-        </div>
+  <div class="container" style="max-width:400px;margin:2rem auto;">
+    <div class="text-center mt-2">
+      <h1>Choose a New Password</h1>
+      <p>Please enter your new password</p>
     </div>
 
-    <script type="module">
-        import { createPasswordStrengthIndicator, updatePasswordStrengthIndicator, validatePassword } from './password-utils.js';
+    <!-- Error if link bad -->
+    <div id="linkError" style="display:none;color:red;" class="text-center mt-3">
+      <p>Invalid or expired link.</p>
+      <a href="reset-password.html">Request a new reset link</a>
+    </div>
 
-        // Initialize password strength indicator
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const passwordStrengthContainer = document.getElementById('passwordStrength');
-        const strengthIndicator = createPasswordStrengthIndicator();
-        passwordStrengthContainer.appendChild(strengthIndicator);
+    <!-- New password form -->
+    <form id="newPassForm" style="display:none;">
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <input id="newPassword" type="password" class="form-control" required/>
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input id="confirmPassword" type="password" class="form-control" required/>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">Set Password</button>
+    </form>
 
-        // Update password strength in real-time
-        passwordInput.addEventListener('input', function() {
-            updatePasswordStrengthIndicator(this.value, strengthIndicator);
-            validateForm();
-        });
+    <!-- Success message -->
+    <div id="successMessage" style="display:none;" class="text-center mt-3">
+      <p>Your password has been updated!</p>
+      <a href="index.html">Log in now</a>
+    </div>
+  </div>
 
-        // Validate password match in real-time
-        confirmPasswordInput.addEventListener('input', validateForm);
+  <script>
+    (async () => {
+      // 1) Grab access_token from URL (Sent by Supabase in email link)
+      const params = new URLSearchParams(window.location.search);
+      const access_token = params.get('access_token');
+      if (!access_token) {
+        document.getElementById('linkError').style.display = 'block';
+        return;
+      }
 
-        function validateForm() {
-            const password = passwordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-            const validation = validatePassword(password, confirmPassword);
+      // 2) Establish session so we can call updateUser()
+      //    (This will not persist beyond this page, it's just for this request)
+      const { error: sessionError } = await supabase.auth.setSession({ access_token });
+      if (sessionError) {
+        console.error(sessionError);
+        document.getElementById('linkError').style.display = 'block';
+        return;
+      }
 
-            // Update password input validation
-            if (password) {
-                passwordInput.classList.toggle('is-invalid', !validation.isValid);
-                passwordInput.classList.toggle('is-valid', validation.isValid);
-                passwordInput.nextElementSibling.nextElementSibling.textContent = validation.message;
-            }
+      // 3) Show the form now that session is set
+      const form = document.getElementById('newPassForm');
+      form.style.display = 'block';
 
-            // Update confirm password input validation
-            if (confirmPassword) {
-                confirmPasswordInput.classList.toggle('is-invalid', !validation.isValid);
-                confirmPasswordInput.classList.toggle('is-valid', validation.isValid);
-                confirmPasswordInput.nextElementSibling.textContent = validation.message;
-            }
-
-            return validation.isValid;
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const pw = document.getElementById('newPassword').value;
+        const confirm = document.getElementById('confirmPassword').value;
+        if (pw !== confirm) {
+          return showAlert('Passwords do not match', 'danger');
         }
 
-        async function handleConfirmReset(event) {
-            event.preventDefault();
-            
-            if (!validateForm()) {
-                return false;
-            }
-
-            const password = document.getElementById('password').value;
-            const submitButton = event.target.querySelector('button[type="submit"]');
-            
-            try {
-                // Get the action code from the URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const actionCode = urlParams.get('oobCode');
-
-                if (!actionCode) {
-                    throw new Error('Invalid password reset link');
-                }
-
-                // Verify the password reset code
-                await verifyPasswordResetCode(auth, actionCode);
-                
-                // Disable the submit button
-                submitButton.disabled = true;
-                submitButton.textContent = 'Resetting...';
-                
-                // Confirm the password reset
-                await confirmPasswordReset(auth, actionCode, password);
-                
-                showAlert('Password has been reset successfully', 'success');
-                
-                // Redirect to login page after a delay
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 2000);
-            } catch (error) {
-                showAlert(error.message, 'danger');
-                submitButton.disabled = false;
-                submitButton.textContent = 'Reset Password';
-            }
-
-            return false;
+        // 4) Submit the new password
+        const { error } = await supabase.auth.updateUser({ password: pw });
+        if (error) {
+          return showAlert('Error updating password: ' + error.message, 'danger');
         }
 
-        // Make handleConfirmReset available globally
-        window.handleConfirmReset = handleConfirmReset;
-    </script>
-<script type="module" src="app.js"></script>
+        // 5) Show success state
+        form.style.display = 'none';
+        document.getElementById('successMessage').style.display = 'block';
+      });
+    })();
+  </script>
 </body>
-</html> 
+</html>
