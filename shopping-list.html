@@ -1,229 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopping List - Pantry Inventory Management</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shopping List – Pantry Inventory Management</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- 1) Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- 2) Your Supabase config (must define window.supabase) -->
+  <script src="supabase-config.js"></script>
+  <!-- 3) Your common utilities (checkAuth, showModal, hideModal, showAlert, formatDate, handleLogout) -->
+  <script src="app.js"></script>
 </head>
 <body>
-    <nav class="navbar">
-        <ul class="nav-list">
-            <li><a href="dashboard.html">Dashboard</a></li>
-            <li><a href="pantry.html">Pantry</a></li>
-            <li><a href="shopping-list.html">Shopping List</a></li>
-            <li><a href="#" onclick="handleLogout()">Logout</a></li>
-        </ul>
-    </nav>
+  <nav class="navbar">
+    <ul class="nav-list">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="pantry.html">Pantry</a></li>
+      <li><a href="shopping-list.html" class="active">Shopping List</a></li>
+      <li><a href="#" class="logout-btn" onclick="handleLogout()">Logout</a></li>
+    </ul>
+  </nav>
 
-    <div class="container">
-        <div class="text-center mt-2">
-            <h1>Shopping Lists</h1>
-            <div class="mt-2">
-                <button class="btn btn-primary" onclick="generateShoppingList()">Generate New List</button>
-                <button class="btn btn-primary" onclick="showModal('createListModal')">Create Custom List</button>
-            </div>
-        </div>
-
-        <div class="mt-2">
-            <div class="form-group">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search lists...">
-            </div>
-
-            <div id="shoppingLists">
-                <!-- Lists will be populated dynamically -->
-            </div>
-        </div>
+  <div class="container">
+    <div class="text-center mt-2">
+      <h1>Shopping Lists</h1>
+      <div class="mt-2">
+        <button class="btn btn-primary" onclick="generateShoppingList()">Generate New List</button>
+        <button class="btn btn-primary" onclick="showModal('createListModal')">Create Custom List</button>
+      </div>
     </div>
 
-    <!-- Create Custom List Modal -->
-    <div id="createListModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Create Custom Shopping List</h2>
-            <form id="createListForm" onsubmit="return handleCreateList(event)">
-                <div class="form-group">
-                    <label for="listName">List Name</label>
-                    <input type="text" id="listName" class="form-control" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="listItems">Items (one per line)</label>
-                    <textarea id="listItems" class="form-control" rows="5" required></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Create List</button>
-            </form>
-        </div>
+    <div class="mt-2">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search lists or items...">
     </div>
 
-    <!-- View List Modal -->
-    <div id="viewListModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="viewListTitle">Shopping List</h2>
-            <div id="viewListItems">
-                <!-- List items will be populated dynamically -->
-            </div>
-            <div class="mt-2">
-                <button class="btn btn-primary" onclick="printList()">Print List</button>
-            </div>
-        </div>
+    <div id="shoppingLists" class="mt-2">
+      <!-- Lists rendered here -->
     </div>
+  </div>
 
-    <script src="app.js"></script>
-    <script>
-        // Sample data - will be replaced with Firebase data
-        let shoppingLists = [
-            {
-                id: 1,
-                name: 'Weekly Groceries',
-                items: ['Milk', 'Bread', 'Eggs', 'Cheese'],
-                date: '2024-03-15'
-            },
-            {
-                id: 2,
-                name: 'Party Supplies',
-                items: ['Chips', 'Soda', 'Paper Plates', 'Napkins'],
-                date: '2024-03-20'
-            }
-        ];
+  <!-- Create Custom List Modal -->
+  <div id="createListModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Create Custom Shopping List</h2>
+      <form id="createListForm">
+        <div class="form-group">
+          <label for="listName">List Name</label>
+          <input type="text" id="listName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="listItems">Items (one per line)</label>
+          <textarea id="listItems" class="form-control" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Create List</button>
+      </form>
+    </div>
+  </div>
 
-        // Display shopping lists
-        function displayLists(lists) {
-            const container = document.getElementById('shoppingLists');
-            container.innerHTML = '';
+  <!-- View List Modal -->
+  <div id="viewListModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="viewListTitle">Shopping List</h2>
+      <div id="viewListItems"></div>
+      <div class="mt-2">
+        <button class="btn btn-primary" onclick="printList()">Print List</button>
+      </div>
+    </div>
+  </div>
 
-            lists.forEach(list => {
-                const listDiv = document.createElement('div');
-                listDiv.className = 'card';
-                listDiv.style.marginBottom = '1rem';
-                listDiv.innerHTML = `
-                    <div style="padding: 1rem;">
-                        <h3>${list.name}</h3>
-                        <p>Created: ${formatDate(list.date)}</p>
-                        <p>Items: ${list.items.length}</p>
-                        <div class="mt-2">
-                            <button class="btn btn-primary" onclick="viewList(${list.id})">View</button>
-                            <button class="btn btn-danger" onclick="deleteList(${list.id})">Delete</button>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(listDiv);
-            });
-        }
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuth();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session.user;
+      let shoppingLists = [];
 
-        // Generate shopping list based on low stock items
-        function generateShoppingList() {
-            // This will be replaced with actual logic to check pantry items
-            const newList = {
-                id: Date.now(),
-                name: 'Auto-generated List',
-                items: ['Milk', 'Bread', 'Eggs'],
-                date: new Date().toISOString().split('T')[0]
-            };
+      // 1) Load all lists for this user
+      async function loadLists() {
+        const { data, error } = await supabase
+          .from('shopping_lists')
+          .select('list_id, name, items, creation_date')
+          .eq('uid', user.id)
+          .order('creation_date', { ascending: false });
+        if (error) return showAlert('Error loading lists: ' + error.message, 'danger');
+        shoppingLists = data.map(l => ({
+          id:   l.list_id,
+          name: l.name,
+          items:l.items,
+          date: l.creation_date
+        }));
+        displayLists(shoppingLists);
+      }
+      window.loadLists = loadLists;  // expose for generate
 
-            shoppingLists.push(newList);
-            displayLists(shoppingLists);
-            showAlert('Shopping list generated successfully');
-        }
-
-        // Create custom list
-        function handleCreateList(event) {
-            event.preventDefault();
-            
-            const name = document.getElementById('listName').value;
-            const items = document.getElementById('listItems').value
-                .split('\n')
-                .map(item => item.trim())
-                .filter(item => item);
-
-            const newList = {
-                id: Date.now(),
-                name: name,
-                items: items,
-                date: new Date().toISOString().split('T')[0]
-            };
-
-            shoppingLists.push(newList);
-            displayLists(shoppingLists);
-            hideModal('createListModal');
-            showAlert('Shopping list created successfully');
-            
-            return false;
-        }
-
-        // View list details
-        function viewList(id) {
-            const list = shoppingLists.find(list => list.id === id);
-            if (list) {
-                document.getElementById('viewListTitle').textContent = list.name;
-                const itemsContainer = document.getElementById('viewListItems');
-                itemsContainer.innerHTML = `
-                    <p>Created: ${formatDate(list.date)}</p>
-                    <ul style="list-style: none; padding: 0;">
-                        ${list.items.map(item => `
-                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
-                                ${item}
-                            </li>
-                        `).join('')}
-                    </ul>
-                `;
-                showModal('viewListModal');
-            }
-        }
-
-        // Delete list
-        function deleteList(id) {
-            if (confirm('Are you sure you want to delete this list?')) {
-                shoppingLists = shoppingLists.filter(list => list.id !== id);
-                displayLists(shoppingLists);
-                showAlert('List deleted successfully');
-            }
-        }
-
-        // Print list
-        function printList() {
-            const printWindow = window.open('', '_blank');
-            const listTitle = document.getElementById('viewListTitle').textContent;
-            const listItems = document.getElementById('viewListItems').innerHTML;
-
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>${listTitle}</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; padding: 20px; }
-                            h1 { color: #333; }
-                            ul { list-style: none; padding: 0; }
-                            li { padding: 5px 0; border-bottom: 1px solid #ddd; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>${listTitle}</h1>
-                        ${listItems}
-                    </body>
-                </html>
-            `);
-
-            printWindow.document.close();
-            printWindow.print();
-        }
-
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredLists = shoppingLists.filter(list => 
-                list.name.toLowerCase().includes(searchTerm) ||
-                list.items.some(item => item.toLowerCase().includes(searchTerm))
-            );
-            displayLists(filteredLists);
+      // 2) Render lists
+      function displayLists(lists) {
+        const container = document.getElementById('shoppingLists');
+        container.innerHTML = '';
+        lists.forEach(list => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.style.marginBottom = '1rem';
+          div.innerHTML = `
+            <div style="padding:1rem;">
+              <h3>${list.name}</h3>
+              <p>Created: ${formatDate(list.date)}</p>
+              <p>Items: ${list.items.length}</p>
+              <div class="mt-2">
+                <button class="btn btn-sm btn-primary" onclick="viewList(${list.id})">View</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteList(${list.id})">Delete</button>
+              </div>
+            </div>`;
+          container.appendChild(div);
         });
+      }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            displayLists(shoppingLists);
-        });
-    </script>
+      // 3) Generate list from low-stock/expiring pantry items
+      window.generateShoppingList = async function() {
+        // Get items qty=0 or expired
+        const today = new Date().toISOString().slice(0,10);
+        const { data: lowItems, error: e1 } = await supabase
+          .from('pantry_items')
+          .select('name')
+          .eq('uid', user.id)
+          .or(`quantity.eq.0,expiration_date.lte.${today}`);
+        if (e1) return showAlert('Error generating: '+e1.message,'danger');
+
+        const itemNames = lowItems.map(i=>i.name);
+        // Insert new auto list
+        const { error: e2 } = await supabase
+          .from('shopping_lists')
+          .insert([{
+            uid: user.id,
+            name: 'Auto-generated List',
+            items: itemNames,
+            creation_date: new Date().toISOString()
+          }]);
+        if (e2) return showAlert('Error saving generated list: '+e2.message,'danger');
+        showAlert('Shopping list generated','success');
+        await loadLists();
+      };
+
+      // 4) Handle custom list creation
+      document.getElementById('createListForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const name  = document.getElementById('listName').value.trim();
+        const items = document.getElementById('listItems').value
+                        .split('\n').map(s=>s.trim()).filter(Boolean);
+        const { error } = await supabase
+          .from('shopping_lists')
+          .insert([{ uid:user.id, name, items, creation_date:new Date().toISOString() }]);
+        if (error) return showAlert('Error creating list: '+error.message,'danger');
+        hideModal('createListModal');
+        showAlert('Shopping list created','success');
+        await loadLists();
+      };
+
+      // 5) View list
+      window.viewList = id => {
+        const list = shoppingLists.find(l=>l.id===id);
+        if (!list) return;
+        document.getElementById('viewListTitle').textContent = list.name;
+        document.getElementById('viewListItems').innerHTML = `
+          <p>Created: ${formatDate(list.date)}</p>
+          <ul style="list-style:none;padding:0;">
+            ${list.items.map(item=>`<li style="padding:0.5rem 0;border-bottom:1px solid var(--border-color);">${item}</li>`).join('')}
+          </ul>`;
+        showModal('viewListModal');
+      };
+
+      // 6) Delete list
+      window.deleteList = async id => {
+        if (!confirm('Delete this list?')) return;
+        const { error } = await supabase
+          .from('shopping_lists')
+          .delete()
+          .eq('list_id', id);
+        if (error) return showAlert('Error deleting list: '+error.message,'danger');
+        showAlert('List deleted','success');
+        await loadLists();
+      };
+
+      // 7) Print list
+      window.printList = () => {
+        const printContent = document.getElementById('viewListModal').querySelector('.modal-content').innerHTML;
+        const w = window.open('', '_blank');
+        w.document.write(`<html><head><title>${document.getElementById('viewListTitle').textContent}</title></head><body>${printContent}</body></html>`);
+        w.document.close();
+        w.print();
+      };
+
+      // 8) Search
+      document.getElementById('searchInput').addEventListener('input', e => {
+        const q = e.target.value.toLowerCase();
+        displayLists(shoppingLists.filter(l=>
+          l.name.toLowerCase().includes(q) ||
+          l.items.some(i=>i.toLowerCase().includes(q))
+        ));
+      });
+
+      // Initial load
+      await loadLists();
+    });
+  </script>
 </body>
-</html> 
+</html>
