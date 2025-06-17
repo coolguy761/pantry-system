@@ -23,7 +23,10 @@
     <div class="text-center mt-2">
       <h1>Shopping Lists</h1>
       <div class="mt-2">
-        <button class="btn btn-primary" onclick="generateShoppingList()">Generate New List</button>
+        <!-- give the button an id so we can enable/disable it -->
+        <button id="generateBtn" class="btn btn-primary" onclick="generateShoppingList()" disabled>
+          Generate New List
+        </button>
         <button class="btn btn-primary" onclick="showModal('createListModal')">Create Custom List</button>
       </div>
     </div>
@@ -103,13 +106,27 @@
         });
       }
 
+      // Check if there are low-stock items (qty <= 1) and enable the button if so
+      async function updateGenerateButton() {
+        const { data: lowItems, error } = await supabase
+          .from('pantry_items')
+          .select('item_id')
+          .eq('uid', user.id)
+          .lte('quantity', 1);
+        if (error) {
+          console.error('Error checking low-stock items:', error.message);
+          return;
+        }
+        document.getElementById('generateBtn').disabled = lowItems.length === 0;
+      }
+
       window.generateShoppingList = async function() {
-        const today = new Date().toISOString().slice(0,10);
+        // Grab only the low-stock items
         const { data: lowItems, error: e1 } = await supabase
           .from('pantry_items')
           .select('name')
           .eq('uid', user.id)
-          .or(`quantity.eq.0,expiration_date.lte.${today}`);
+          .lte('quantity', 1);
         if (e1) return showAlert('Error generating: ' + e1.message, 'danger');
         const itemNames = lowItems.map(i => i.name);
         const { error: e2 } = await supabase
@@ -120,6 +137,7 @@
         await logActivity('Generate Shopping List', JSON.stringify(itemNames));
         showAlert('Shopping list generated', 'success');
         await loadLists();
+        await updateGenerateButton();
       };
 
       document.getElementById('createListForm').onsubmit = async e => {
@@ -135,6 +153,7 @@
         hideModal('createListModal');
         showAlert('Shopping list created', 'success');
         await loadLists();
+        await updateGenerateButton();
       };
 
       window.viewList = id => {
@@ -160,6 +179,7 @@
         await logActivity('Delete Shopping List', `ID: ${id}`);
         showAlert('List deleted', 'success');
         await loadLists();
+        await updateGenerateButton();
       };
 
       document.getElementById('searchInput').addEventListener('input', e => {
@@ -169,7 +189,9 @@
         ));
       });
 
+      // Initial load & button state
       await loadLists();
+      await updateGenerateButton();
     });
   </script>
 </body>
