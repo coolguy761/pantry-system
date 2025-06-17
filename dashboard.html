@@ -27,7 +27,10 @@
     <div class="text-center mt-2">
       <h1>Welcome to Your Dashboard</h1>
       <p>Manage your pantry inventory efficiently</p>
-      <p id="userInfo" class="mt-2"></p>
+      <!-- Updated to use sessionStorage role -->
+      <p id="userInfo" class="mt-2">
+        Logged in as: <span id="userEmail"></span> (<span id="userRoleDisplay"></span>)
+      </p>
     </div>
 
     <!-- Notification Preferences -->
@@ -91,23 +94,21 @@
       // 1) Ensure user is authenticated
       await checkAuth();
 
-      // 2) Get current user & profile
+      // 2) Get current session & user
       const { data: { session } } = await supabase.auth.getSession();
       const user = session.user;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('uid', user.id)
-        .maybeSingle();
 
-      // 3) Display user info & admin features
-      document.getElementById('userInfo').textContent =
-        `Logged in as: ${user.email} (${profile?.role || 'user'})`;
-      if (profile?.role === 'admin') {
+      // 3) Populate email and role from sessionStorage
+      const role = sessionStorage.getItem('userRole') || 'user';
+      document.getElementById('userEmail').textContent = user.email;
+      document.getElementById('userRoleDisplay').textContent = role;
+
+      // 4) Show admin tools if this is an admin
+      if (role === 'admin') {
         document.getElementById('adminFeatures').style.display = 'block';
       }
 
-      // 4) Load and render summary & notifications
+      // 5) Load and render summary & notifications
       async function loadSummary() {
         // Fetch all pantry items
         const { data: items, error } = await supabase
@@ -142,13 +143,13 @@
         });
       }
 
-      // Re-load summary when preferences change
+      // 6) Re-load summary when preferences change
       document.getElementById('notificationDays')
               .addEventListener('change', loadSummary);
       document.getElementById('emailNotifications')
               .addEventListener('change', loadSummary);
 
-      // Initial summary load
+      // 7) Initial summary load
       await loadSummary();
     });
   </script>
