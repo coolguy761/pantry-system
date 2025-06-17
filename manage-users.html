@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <!-- Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- App utilities -->
+  <!-- App utilities (defines checkAuth, showAlert, logActivity, etc.) -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -31,10 +31,8 @@
     </div>
 
     <div class="mt-2">
-      <div class="form-group">
-        <input type="text" id="searchInput" class="form-control" placeholder="Search users...">
-      </div>
-      <table class="table">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search users...">
+      <table class="table mt-2">
         <thead>
           <tr>
             <th>Email</th>
@@ -50,7 +48,7 @@
   <!-- Add User Modal -->
   <div id="addUserModal" class="modal">
     <div class="modal-content">
-      <span class="close">&times;</span>
+      <span class="close" onclick="hideModal('addUserModal')">&times;</span>
       <h2>Add New User</h2>
       <form id="addUserForm">
         <div class="form-group">
@@ -76,7 +74,7 @@
   <!-- Edit User Modal -->
   <div id="editUserModal" class="modal">
     <div class="modal-content">
-      <span class="close">&times;</span>
+      <span class="close" onclick="hideModal('editUserModal')">&times;</span>
       <h2>Edit User Role</h2>
       <form id="editUserForm">
         <input type="hidden" id="editUserUid">
@@ -94,29 +92,25 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      // 1) Ensure user is authenticated
+      // 1) Auth guard
       await checkAuth();
-
-      // 2) Only allow admins
-      const role = sessionStorage.getItem('userRole');
-      if (role !== 'admin') {
-        window.location.href = 'dashboard.html';
-        return;
+      if (sessionStorage.getItem('userRole') !== 'admin') {
+        return window.location.href = 'dashboard.html';
       }
 
       let allUsers = [];
 
-      // Load users from profiles table
+      // 2) Load & display
       async function loadUsers() {
         const { data, error } = await supabase
           .from('profiles')
           .select('uid, email, role');
         if (error) return showAlert('Error loading users: ' + error.message, 'danger');
         allUsers = data;
-        displayUsers(allUsers);
+        renderUsers(allUsers);
       }
 
-      function displayUsers(users) {
+      function renderUsers(users) {
         const tbody = document.getElementById('userList');
         tbody.innerHTML = '';
         users.forEach(u => {
@@ -126,30 +120,28 @@
             <td>${u.role}</td>
             <td>
               <button class="btn btn-sm btn-primary" onclick="openEditModal('${u.uid}','${u.role}')">Edit</button>
-              <button class="btn btn-sm btn-primary" onclick="handleDeleteUser('${u.uid}')">Delete</button>
+              <button class="btn btn-sm btn-danger" onclick="handleDeleteUser('${u.uid}')">Delete</button>
             </td>`;
           tbody.appendChild(tr);
         });
       }
 
-      // Search functionality
+      // 3) Search
       document.getElementById('searchInput').addEventListener('input', e => {
         const q = e.target.value.toLowerCase();
-        displayUsers(allUsers.filter(u => u.email.toLowerCase().includes(q)));
+        renderUsers(allUsers.filter(u => u.email.toLowerCase().includes(q)));
       });
 
-      // Add user
+      // 4) Add user
       document.getElementById('addUserForm').onsubmit = async e => {
         e.preventDefault();
         const email = document.getElementById('userEmail').value.trim();
         const password = document.getElementById('userPassword').value;
-        const role = document.getElementById('userRole').value;
+        const role    = document.getElementById('userRole').value;
 
-        // Create auth user
         const { data, error: signError } = await supabase.auth.signUp({ email, password });
-        if (signError) return showAlert('Error creating user: ' + signError.message, 'danger');
+        if (signError) return showAlert('Error creating auth user: ' + signError.message, 'danger');
 
-        // Insert profile
         const { error: profErr } = await supabase
           .from('profiles')
           .insert([{ uid: data.user.id, email, role }]);
@@ -160,16 +152,15 @@
         loadUsers();
       };
 
-      // Edit user
+      // 5) Edit user
       window.openEditModal = (uid, role) => {
         document.getElementById('editUserUid').value = uid;
         document.getElementById('editUserRole').value = role;
         showModal('editUserModal');
       };
-
       document.getElementById('editUserForm').onsubmit = async e => {
         e.preventDefault();
-        const uid = document.getElementById('editUserUid').value;
+        const uid  = document.getElementById('editUserUid').value;
         const role = document.getElementById('editUserRole').value;
 
         const { error } = await supabase
@@ -183,19 +174,17 @@
         loadUsers();
       };
 
-      // Delete user
+      // 6) Delete user via RPC
       window.handleDeleteUser = async uid => {
         if (!confirm('Delete this user?')) return;
         const { error } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('uid', uid);
+          .rpc('delete_user_and_auth', { uid_to_delete: uid });
         if (error) return showAlert('Error deleting user: ' + error.message, 'danger');
         showAlert('User removed', 'success');
         loadUsers();
       };
 
-      // Initialize
+      // Initial load
       loadUsers();
     });
   </script>
