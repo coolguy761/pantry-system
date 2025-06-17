@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - Pantry Inventory Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, confirmPasswordReset, verifyPasswordResetCode } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5lzUpzxOFajjIuBVDOpQAQGrkBdkkP2w",
+            authDomain: "pantry-system-108d4.firebaseapp.com",
+            projectId: "pantry-system-108d4",
+            storageBucket: "pantry-system-108d4.firebasestorage.app",
+            messagingSenderId: "928343271258",
+            appId: "1:928343271258:web:c802701c1b144042913563",
+            measurementId: "G-R6GJZZCTJH"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Make auth and functions available globally
+        window.auth = auth;
+        window.confirmPasswordReset = confirmPasswordReset;
+        window.verifyPasswordResetCode = verifyPasswordResetCode;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mt-2">
+            <h1>Set New Password</h1>
+            <p>Please enter your new password</p>
+        </div>
+
+        <div style="max-width: 400px; margin: 2rem auto;">
+            <form id="resetForm" onsubmit="return handleConfirmReset(event)">
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                    <div id="passwordStrength"></div>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" class="form-control" required>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createPasswordStrengthIndicator, updatePasswordStrengthIndicator, validatePassword } from './password-utils.js';
+
+        // Initialize password strength indicator
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const passwordStrengthContainer = document.getElementById('passwordStrength');
+        const strengthIndicator = createPasswordStrengthIndicator();
+        passwordStrengthContainer.appendChild(strengthIndicator);
+
+        // Update password strength in real-time
+        passwordInput.addEventListener('input', function() {
+            updatePasswordStrengthIndicator(this.value, strengthIndicator);
+            validateForm();
+        });
+
+        // Validate password match in real-time
+        confirmPasswordInput.addEventListener('input', validateForm);
+
+        function validateForm() {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            const validation = validatePassword(password, confirmPassword);
+
+            // Update password input validation
+            if (password) {
+                passwordInput.classList.toggle('is-invalid', !validation.isValid);
+                passwordInput.classList.toggle('is-valid', validation.isValid);
+                passwordInput.nextElementSibling.nextElementSibling.textContent = validation.message;
+            }
+
+            // Update confirm password input validation
+            if (confirmPassword) {
+                confirmPasswordInput.classList.toggle('is-invalid', !validation.isValid);
+                confirmPasswordInput.classList.toggle('is-valid', validation.isValid);
+                confirmPasswordInput.nextElementSibling.textContent = validation.message;
+            }
+
+            return validation.isValid;
+        }
+
+        async function handleConfirmReset(event) {
+            event.preventDefault();
+            
+            if (!validateForm()) {
+                return false;
+            }
+
+            const password = document.getElementById('password').value;
+            const submitButton = event.target.querySelector('button[type="submit"]');
+            
+            try {
+                // Get the action code from the URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const actionCode = urlParams.get('oobCode');
+
+                if (!actionCode) {
+                    throw new Error('Invalid password reset link');
+                }
+
+                // Verify the password reset code
+                await verifyPasswordResetCode(auth, actionCode);
+                
+                // Disable the submit button
+                submitButton.disabled = true;
+                submitButton.textContent = 'Resetting...';
+                
+                // Confirm the password reset
+                await confirmPasswordReset(auth, actionCode, password);
+                
+                showAlert('Password has been reset successfully', 'success');
+                
+                // Redirect to login page after a delay
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            } catch (error) {
+                showAlert(error.message, 'danger');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Reset Password';
+            }
+
+            return false;
+        }
+
+        // Make handleConfirmReset available globally
+        window.handleConfirmReset = handleConfirmReset;
+    </script>
+</body>
+</html> 

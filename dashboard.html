@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Pantry Inventory Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5lzUpzxOFajjIuBVDOpQAQGrkBdkkP2w",
+            authDomain: "pantry-system-108d4.firebaseapp.com",
+            projectId: "pantry-system-108d4",
+            storageBucket: "pantry-system-108d4.firebasestorage.app",
+            messagingSenderId: "928343271258",
+            appId: "1:928343271258:web:c802701c1b144042913563",
+            measurementId: "G-R6GJZZCTJH"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const analytics = getAnalytics(app);
+
+        // Make Firebase services available globally
+        window.auth = auth;
+        window.db = db;
+        window.storage = storage;
+        window.analytics = analytics;
+    </script>
+</head>
+<body>
+    <nav class="navbar">
+        <ul class="nav-list">
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="pantry.html">Pantry</a></li>
+            <li><a href="shopping-list.html">Shopping List</a></li>
+            <li><a href="#" onclick="handleLogout()">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="text-center mt-2">
+            <h1>Welcome to Your Dashboard</h1>
+            <p>Manage your pantry inventory efficiently</p>
+            <p id="userInfo" class="mt-2"></p>
+        </div>
+
+        <!-- Notification Preferences -->
+        <div class="card mt-2" style="padding: 1rem;">
+            <h3>Notification Preferences</h3>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="emailNotifications" onchange="updateNotificationPreferences()">
+                    Receive email notifications for expiring items
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="notificationDays">Notify me about items expiring within:</label>
+                <select id="notificationDays" class="form-control" onchange="updateNotificationPreferences()">
+                    <option value="3">3 days</option>
+                    <option value="5">5 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="14">14 days</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Notifications Section -->
+        <div id="notifications" class="mt-2">
+            <!-- Notifications will be populated dynamically -->
+        </div>
+
+        <!-- Notification History -->
+        <div class="card mt-2" style="padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>Notification History</h3>
+                <button class="btn btn-sm btn-outline-warning" onclick="clearNotificationHistory()">Clear History</button>
+            </div>
+            <div class="form-group">
+                <input type="text" id="historySearch" class="form-control" placeholder="Search notification history...">
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Item</th>
+                            <th>Status</th>
+                            <th>Expiration Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notificationHistory">
+                        <!-- History will be populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-2">
+            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                <!-- Common Features for All Users -->
+                <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <h3>Quick Actions</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin: 0.5rem 0;">
+                            <a href="pantry.html" class="btn btn-primary" style="width: 100%;">View Pantry</a>
+                        </li>
+                        <li style="margin: 0.5rem 0;">
+                            <a href="shopping-list.html" class="btn btn-primary" style="width: 100%;">View Shopping List</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <h3>Inventory Summary</h3>
+                    <p>Total Items: <span id="totalItems">0</span></p>
+                    <p>Items Expiring Soon: <span id="expiringItems">0</span></p>
+                    <p>Low Stock Items: <span id="lowStockItems">0</span></p>
+                </div>
+
+                <!-- Admin Features -->
+                <div id="adminFeatures" class="card" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 4px; display: none;">
+                    <h3>Admin Tools</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin: 0.5rem 0;">
+                            <a href="user-logs.html" class="btn btn-primary" style="width: 100%;">View User Logs</a>
+                        </li>
+                        <li style="margin: 0.5rem 0;">
+                            <a href="manage-users.html" class="btn btn-primary" style="width: 100%;">Manage Users</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Check user role and display appropriate features
+        async function checkUserRole() {
+            const user = auth.currentUser;
+            
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Get user data from Firestore
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            const userData = userDoc.data();
+
+            // Display user info
+            const userInfo = document.getElementById('userInfo');
+            userInfo.textContent = `Logged in as: ${user.email} (${userData.role})`;
+
+            // Show/hide admin features
+            const adminFeatures = document.getElementById('adminFeatures');
+            adminFeatures.style.display = userData.role === 'admin' ? 'block' : 'none';
+        }
+
+        // Load notification preferences
+        async function loadNotificationPreferences() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            const userData = userDoc.data();
+
+            document.getElementById('emailNotifications').checked = userData.emailNotifications || false;
+            document.getElementById('notificationDays').value = userData.notificationDays || '7';
+        }
+
+        // Update notification preferences
+        async function updateNotificationPreferences() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const emailNotifications = document.getElementById('emailNotifications').checked;
+            const notificationDays = document.getElementById('notificationDays').value;
+
+            await db.collection('users').doc(user.uid).update({
+                emailNotifications,
+                notificationDays: parseInt(notificationDays)
+            });
+
+            checkExpiringItems();
+        }
+
+        // Add to notification history
+        async function addToNotificationHistory(item) {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const today = new Date();
+            const expDate = new Date(item.expirationDate);
+            const daysUntilExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+            const historyEntry = {
+                itemId: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                expirationDate: item.expirationDate,
+                daysUntilExpiry,
+                notificationDate: today,
+                status: 'Active',
+                dismissed: false
+            };
+
+            await db.collection('users').doc(user.uid)
+                .collection('notifications').add(historyEntry);
+
+            displayNotificationHistory();
+        }
+
+        // Display notification history
+        async function displayNotificationHistory() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const searchTerm = document.getElementById('historySearch').value.toLowerCase();
+            
+            let query = db.collection('users').doc(user.uid)
+                .collection('notifications')
+                .orderBy('notificationDate', 'desc');
+
+            const snapshot = await query.get();
+            const tbody = document.getElementById('notificationHistory');
+            tbody.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const entry = doc.data();
+                if (entry.name.toLowerCase().includes(searchTerm) ||
+                    entry.status.toLowerCase().includes(searchTerm)) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${formatDateTime(entry.notificationDate.toDate())}</td>
+                        <td>${entry.name} (${entry.quantity} ${entry.quantity === 1 ? 'item' : 'items'})</td>
+                        <td>
+                            <span class="status-badge ${entry.status.toLowerCase()}">
+                                ${entry.status}
+                            </span>
+                        </td>
+                        <td>${formatDate(entry.expirationDate)} (${entry.daysUntilExpiry} days)</td>
+                        <td>
+                            ${entry.status === 'Active' ? `
+                                <button class="btn btn-sm btn-outline-warning" onclick="dismissNotification(null, '${doc.id}', ${entry.itemId})">
+                                    Dismiss
+                                </button>
+                            ` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+        }
+
+        // Clear notification history
+        async function clearNotificationHistory() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            if (confirm('Are you sure you want to clear the notification history?')) {
+                const batch = db.batch();
+                const snapshot = await db.collection('users').doc(user.uid)
+                    .collection('notifications').get();
+                
+                snapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                displayNotificationHistory();
+            }
+        }
+
+        // Dismiss notification
+        async function dismissNotification(notificationId, itemId) {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            // Update notification status
+            await db.collection('users').doc(user.uid)
+                .collection('notifications').doc(notificationId)
+                .update({
+                    status: 'Dismissed',
+                    dismissed: true
+                });
+
+            // Add to dismissed items
+            await db.collection('users').doc(user.uid)
+                .collection('dismissedItems').add({
+                    itemId,
+                    dismissedAt: new Date()
+                });
+
+            checkExpiringItems();
+            displayNotificationHistory();
+        }
+
+        // Send email notification
+        async function sendEmailNotification(expiringItems) {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            const userData = userDoc.data();
+
+            if (!userData.emailNotifications) return;
+
+            // This would be implemented with Firebase Cloud Functions
+            // For now, we'll just log it
+            console.log('Sending email notification to:', user.email);
+            console.log('Expiring items:', expiringItems);
+        }
+
+        // Check for expiring items
+        async function checkExpiringItems() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            const userData = userDoc.data();
+            const notificationDays = userData.notificationDays || 7;
+
+            // Get pantry items
+            const pantrySnapshot = await db.collection('users').doc(user.uid)
+                .collection('pantry').get();
+
+            // Get dismissed items
+            const dismissedSnapshot = await db.collection('users').doc(user.uid)
+                .collection('dismissedItems').get();
+            const dismissedItems = new Set(dismissedSnapshot.docs.map(doc => doc.data().itemId));
+
+            const today = new Date();
+            const notificationsContainer = document.getElementById('notifications');
+            notificationsContainer.innerHTML = '';
+
+            const expiringItems = [];
+            pantrySnapshot.forEach(doc => {
+                const item = doc.data();
+                const expDate = item.expirationDate.toDate();
+                const daysUntilExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+                if (daysUntilExpiry <= notificationDays && 
+                    daysUntilExpiry >= 0 && 
+                    !dismissedItems.has(doc.id)) {
+                    expiringItems.push({
+                        id: doc.id,
+                        ...item,
+                        daysUntilExpiry
+                    });
+                }
+            });
+
+            if (expiringItems.length > 0) {
+                const notificationDiv = document.createElement('div');
+                notificationDiv.className = 'alert alert-warning';
+                notificationDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0;">⚠️ Items Expiring Soon</h4>
+                        <button class="btn btn-sm btn-outline-warning" onclick="dismissAllNotifications()">Dismiss All</button>
+                    </div>
+                    <ul style="list-style: none; padding: 0;">
+                        ${expiringItems.map(item => `
+                            <li style="margin: 0.5rem 0; display: flex; justify-content: space-between; align-items: center;">
+                                <span>
+                                    ${item.name} (${item.quantity} ${item.quantity === 1 ? 'item' : 'items'}) - 
+                                    Expires in ${item.daysUntilExpiry} ${item.daysUntilExpiry === 1 ? 'day' : 'days'}
+                                </span>
+                                <button class="btn btn-sm btn-outline-warning" onclick="dismissNotification(null, '${item.id}')">
+                                    Dismiss
+                                </button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                notificationsContainer.appendChild(notificationDiv);
+
+                // Add to notification history
+                for (const item of expiringItems) {
+                    await addToNotificationHistory(item);
+                }
+
+                // Send email notification if enabled
+                sendEmailNotification(expiringItems);
+            }
+
+            // Update summary counts
+            document.getElementById('totalItems').textContent = pantrySnapshot.size;
+            document.getElementById('expiringItems').textContent = expiringItems.length;
+            document.getElementById('lowStockItems').textContent = 
+                pantrySnapshot.docs.filter(doc => doc.data().quantity <= 2).length;
+        }
+
+        // Dismiss all notifications
+        async function dismissAllNotifications() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const batch = db.batch();
+            const notificationsSnapshot = await db.collection('users').doc(user.uid)
+                .collection('notifications')
+                .where('status', '==', 'Active')
+                .get();
+
+            notificationsSnapshot.forEach(doc => {
+                batch.update(doc.ref, {
+                    status: 'Dismissed',
+                    dismissed: true
+                });
+            });
+
+            await batch.commit();
+            checkExpiringItems();
+            displayNotificationHistory();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Listen for auth state changes
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    await checkUserRole();
+                    await loadNotificationPreferences();
+                    await checkExpiringItems();
+                    await displayNotificationHistory();
+                    
+                    // Add search functionality for notification history
+                    document.getElementById('historySearch').addEventListener('input', displayNotificationHistory);
+                    
+                    // Check for expiring items every hour
+                    setInterval(checkExpiringItems, 3600000);
+                } else {
+                    window.location.href = 'login.html';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

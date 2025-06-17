@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping List - Pantry Inventory Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <ul class="nav-list">
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="pantry.html">Pantry</a></li>
+            <li><a href="shopping-list.html">Shopping List</a></li>
+            <li><a href="#" onclick="handleLogout()">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="text-center mt-2">
+            <h1>Shopping Lists</h1>
+            <div class="mt-2">
+                <button class="btn btn-primary" onclick="generateShoppingList()">Generate New List</button>
+                <button class="btn btn-primary" onclick="showModal('createListModal')">Create Custom List</button>
+            </div>
+        </div>
+
+        <div class="mt-2">
+            <div class="form-group">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search lists...">
+            </div>
+
+            <div id="shoppingLists">
+                <!-- Lists will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Custom List Modal -->
+    <div id="createListModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create Custom Shopping List</h2>
+            <form id="createListForm" onsubmit="return handleCreateList(event)">
+                <div class="form-group">
+                    <label for="listName">List Name</label>
+                    <input type="text" id="listName" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="listItems">Items (one per line)</label>
+                    <textarea id="listItems" class="form-control" rows="5" required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create List</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- View List Modal -->
+    <div id="viewListModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="viewListTitle">Shopping List</h2>
+            <div id="viewListItems">
+                <!-- List items will be populated dynamically -->
+            </div>
+            <div class="mt-2">
+                <button class="btn btn-primary" onclick="printList()">Print List</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Sample data - will be replaced with Firebase data
+        let shoppingLists = [
+            {
+                id: 1,
+                name: 'Weekly Groceries',
+                items: ['Milk', 'Bread', 'Eggs', 'Cheese'],
+                date: '2024-03-15'
+            },
+            {
+                id: 2,
+                name: 'Party Supplies',
+                items: ['Chips', 'Soda', 'Paper Plates', 'Napkins'],
+                date: '2024-03-20'
+            }
+        ];
+
+        // Display shopping lists
+        function displayLists(lists) {
+            const container = document.getElementById('shoppingLists');
+            container.innerHTML = '';
+
+            lists.forEach(list => {
+                const listDiv = document.createElement('div');
+                listDiv.className = 'card';
+                listDiv.style.marginBottom = '1rem';
+                listDiv.innerHTML = `
+                    <div style="padding: 1rem;">
+                        <h3>${list.name}</h3>
+                        <p>Created: ${formatDate(list.date)}</p>
+                        <p>Items: ${list.items.length}</p>
+                        <div class="mt-2">
+                            <button class="btn btn-primary" onclick="viewList(${list.id})">View</button>
+                            <button class="btn btn-danger" onclick="deleteList(${list.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(listDiv);
+            });
+        }
+
+        // Generate shopping list based on low stock items
+        function generateShoppingList() {
+            // This will be replaced with actual logic to check pantry items
+            const newList = {
+                id: Date.now(),
+                name: 'Auto-generated List',
+                items: ['Milk', 'Bread', 'Eggs'],
+                date: new Date().toISOString().split('T')[0]
+            };
+
+            shoppingLists.push(newList);
+            displayLists(shoppingLists);
+            showAlert('Shopping list generated successfully');
+        }
+
+        // Create custom list
+        function handleCreateList(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('listName').value;
+            const items = document.getElementById('listItems').value
+                .split('\n')
+                .map(item => item.trim())
+                .filter(item => item);
+
+            const newList = {
+                id: Date.now(),
+                name: name,
+                items: items,
+                date: new Date().toISOString().split('T')[0]
+            };
+
+            shoppingLists.push(newList);
+            displayLists(shoppingLists);
+            hideModal('createListModal');
+            showAlert('Shopping list created successfully');
+            
+            return false;
+        }
+
+        // View list details
+        function viewList(id) {
+            const list = shoppingLists.find(list => list.id === id);
+            if (list) {
+                document.getElementById('viewListTitle').textContent = list.name;
+                const itemsContainer = document.getElementById('viewListItems');
+                itemsContainer.innerHTML = `
+                    <p>Created: ${formatDate(list.date)}</p>
+                    <ul style="list-style: none; padding: 0;">
+                        ${list.items.map(item => `
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                                ${item}
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                showModal('viewListModal');
+            }
+        }
+
+        // Delete list
+        function deleteList(id) {
+            if (confirm('Are you sure you want to delete this list?')) {
+                shoppingLists = shoppingLists.filter(list => list.id !== id);
+                displayLists(shoppingLists);
+                showAlert('List deleted successfully');
+            }
+        }
+
+        // Print list
+        function printList() {
+            const printWindow = window.open('', '_blank');
+            const listTitle = document.getElementById('viewListTitle').textContent;
+            const listItems = document.getElementById('viewListItems').innerHTML;
+
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>${listTitle}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; }
+                            h1 { color: #333; }
+                            ul { list-style: none; padding: 0; }
+                            li { padding: 5px 0; border-bottom: 1px solid #ddd; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${listTitle}</h1>
+                        ${listItems}
+                    </body>
+                </html>
+            `);
+
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredLists = shoppingLists.filter(list => 
+                list.name.toLowerCase().includes(searchTerm) ||
+                list.items.some(item => item.toLowerCase().includes(searchTerm))
+            );
+            displayLists(filteredLists);
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            displayLists(shoppingLists);
+        });
+    </script>
+</body>
+</html> 
