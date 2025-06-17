@@ -102,10 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     el.style.display = isAdmin() ? 'block' : 'none';
   });
 
-  // d) Redirect guard: skip these public paths
-  const publicPaths = ['/', '/index.html', '/signup.html', '/reset-password.html', '/confirm-reset.html'];
-  const path = window.location.pathname;
-  if (!publicPaths.includes(path)) {
+  // d) Redirect guard: skip these public filenames
+  const publicPages = ['index.html', 'signup.html', 'reset-password.html', 'confirm-reset.html'];
+  const currentPage = window.location.pathname.split('/').pop().split('?')[0];
+  if (!publicPages.includes(currentPage)) {
     checkAuth();
   }
 
