@@ -102,13 +102,17 @@ document.addEventListener('DOMContentLoaded', () => {
     el.style.display = isAdmin() ? 'block' : 'none';
   });
 
-  // d) Redirect guard: skip pages with #signupForm (and other public pages)
+    // d) Redirect guard: skip any page that has #signupForm (or other public pages)
   const publicPages = ['index.html', 'signup.html', 'reset-password.html', 'confirm-reset.html'];
   const currentPage = window.location.pathname.split('/').pop().split('?')[0];
+
+  // Also skip if the signup form exists on the page
   const isSignupPage = !!document.getElementById('signupForm');
+
   if (!publicPages.includes(currentPage) && !isSignupPage) {
     checkAuth();
   }
+
 
 
   // e) Close modals on outside click
