@@ -1,168 +1,58 @@
-// Common utility functions and event handlers
+// app.js - Shared utilities and auth guard for Supabase-powered pages
 
-// Modal handling
-function showModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'block';
-    }
+// MUST be loaded after supabase-config.js
+
+// Show styled alerts
+export function showAlert(message, type = 'info') {
+  const container = document.getElementById('alertContainer');
+  if (!container) return;
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type}`;
+  alertDiv.textContent = message;
+  container.innerHTML = '';
+  container.appendChild(alertDiv);
 }
 
-function hideModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-    }
+// Hide any open modals by id
+export function hideModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.style.display = 'none';
 }
 
-// Close modal when clicking outside
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
+// Check authentication on protected pages
+(async function checkAuth() {
+  // Only run on pages beyond login/signup/reset
+  const protected = [
+    'dashboard.html', 'admin-dashboard.html',
+    'pantry.html', 'shopping-list.html',
+    'manage-users.html', 'user-logs.html', 'user-management.html'
+  ];
+  const current = window.location.pathname.split('/').pop();
+  if (!protected.includes(current)) return;
+
+  // Get current session
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    // Not logged in, redirect to login
+    return window.location = 'index.html';
+  }
+  // Optionally, you can refresh the page or set global user
+  window.currentUser = session.user;
+})();
+
+// Example display helper (override per-page)
+export function displayItems(items) {
+  // Placeholder: implement per-page UI rendering
+  console.warn('displayItems not implemented', items);
 }
 
-// Form validation
-function validateForm(formId) {
-    const form = document.getElementById(formId);
-    if (!form) return false;
-
-    const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
-    let isValid = true;
-
-    inputs.forEach(input => {
-        if (!input.value.trim()) {
-            isValid = false;
-            input.classList.add('error');
-        } else {
-            input.classList.remove('error');
-        }
-    });
-
-    return isValid;
-}
-
-// Show alert message
-function showAlert(message, type = 'success') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.textContent = message;
-
-    const container = document.querySelector('.container');
-    container.insertBefore(alertDiv, container.firstChild);
-
-    // Remove alert after 3 seconds
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 3000);
-}
-
-// Format date for display
-function formatDate(dateString) {
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-}
-
-// Check if user is admin
-function isAdmin() {
-    const userRole = localStorage.getItem('userRole');
-    return userRole === 'admin';
-}
-
-// Handle logout
-function handleLogout() {
-    auth.signOut()
-        .then(() => {
-            localStorage.removeItem('userRole');
-            window.location.href = 'login.html';
-        })
-        .catch(error => {
-            showAlert('Logout failed: ' + error.message, 'danger');
-        });
-}
-
-// Initialize page
-document.addEventListener('DOMContentLoaded', function() {
-    // Add event listeners for modals
-    const closeButtons = document.querySelectorAll('.close');
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const modal = this.closest('.modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
-
-    // Add form validation listeners
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            if (!validateForm(this.id)) {
-                e.preventDefault();
-                showAlert('Please fill in all required fields', 'danger');
-            }
-        });
-    });
-
-    // Show/hide admin elements based on role
-    const adminElements = document.querySelectorAll('.admin-only');
-    adminElements.forEach(element => {
-        element.style.display = isAdmin() ? 'block' : 'none';
-    });
-
-    checkAuth();
+// Sign out utility
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      window.location = 'index.html';
+    };
+  }
 });
-
-// Firebase configuration
-const firebaseConfig = {
-    // Your Firebase configuration here
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// Check if user is logged in
-function checkAuth() {
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            window.location.href = 'login.html';
-        }
-    });
-}
-
-// Handle login
-function handleLogin(event) {
-    event.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    auth.signInWithEmailAndPassword(email, password)
-        .then(userCredential => {
-            // Get user role from Firestore
-            db.collection('users').doc(userCredential.user.uid).get()
-                .then(doc => {
-                    if (doc.exists) {
-                        const userData = doc.data();
-                        localStorage.setItem('userRole', userData.role);
-                        window.location.href = 'dashboard.html';
-                    }
-                })
-                .catch(error => {
-                    showAlert('Error getting user data: ' + error.message, 'danger');
-                });
-        })
-        .catch(error => {
-            showAlert('Login failed: ' + error.message, 'danger');
-        });
-}
-
-// Format currency
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-    }).format(amount);
-} 
