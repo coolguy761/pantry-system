@@ -20,7 +20,7 @@ A simple web app to track your pantry items, generate shopping lists, and manage
 
 - **Frontend**: Plain HTML, CSS, JavaScript  
 - **Backend**: Supabase (PostgreSQL + Row-Level Security + GoTrue Auth + Edge Functions)  
-- **Hosting**: Netlify / Vercel / any static-site host  
+- **Hosting**: Netlify /  any static-site host  
 
 ---
 
