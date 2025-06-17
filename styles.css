@@ -379,3 +379,21 @@ body {
 .form-control.is-invalid ~ .invalid-feedback {
     display: block;
 } 
+
+/* Success (green) button */
+.btn-success {
+  background-color: #28a745;
+  border: 1px solid #28a745;
+  color: #fff;
+}
+/* Danger (red) button */
+.btn-danger {
+  background-color: #dc3545;
+  border: 1px solid #dc3545;
+  color: #fff;
+}
+/* Hover states */
+.btn-success:hover,
+.btn-danger:hover {
+  opacity: 0.9;
+}
