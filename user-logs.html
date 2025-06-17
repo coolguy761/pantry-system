@@ -1,180 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Logs - Pantry Inventory Management</title>
-    <link rel="stylesheet" href="styles.css">
-<!-- Supabase JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="supabase-config.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Logs – Pantry Inventory Management</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Supabase config -->
+  <script src="supabase-config.js"></script>
+  <!-- App utilities -->
+  <script src="app.js"></script>
 </head>
 <body>
-    <nav class="navbar">
-        <ul class="nav-list">
-            <li><a href="dashboard.html">Dashboard</a></li>
-            <li><a href="pantry.html">Pantry</a></li>
-            <li><a href="shopping-list.html">Shopping List</a></li>
-            <li><a href="#" onclick="handleLogout()">Logout</a></li>
-        </ul>
-    </nav>
+  <script>
+    // 1) Quick client‐side admin check based on sessionStorage
+    const role = sessionStorage.getItem('userRole');
+    if (role !== 'admin') {
+      // not an admin → bounce back
+      window.location.href = 'dashboard.html';
+    }
+  </script>
 
-    <div class="container">
-        <div class="text-center mt-2">
-            <h1>User Activity Logs</h1>
-            <p>View and monitor system activity</p>
-        </div>
+  <nav class="navbar">
+    <ul class="nav-list">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="user-logs.html" class="active">User Logs</a></li>
+      <li><a href="manage-users.html">Manage Users</a></li>
+      <li><a href="#" class="logout-btn" onclick="handleLogout()">Logout</a></li>
+    </ul>
+  </nav>
 
-        <div class="mt-2">
-            <div class="form-group">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search logs...">
-            </div>
+  <div class="container">
+    <h1 class="mt-2">User Activity Logs</h1>
+    <table class="table mt-2">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>User Email</th>
+          <th>Activity</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="logsTable">
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </div>
 
-            <div class="form-group">
-                <label for="dateFilter">Filter by Date</label>
-                <input type="date" id="dateFilter" class="form-control">
-            </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 2) Double‐check auth too
+      await checkAuth();
 
-            <div class="form-group">
-                <label for="actionFilter">Filter by Action</label>
-                <select id="actionFilter" class="form-control">
-                    <option value="">All Actions</option>
-                    <option value="login">Login</option>
-                    <option value="logout">Logout</option>
-                    <option value="add">Add Item</option>
-                    <option value="edit">Edit Item</option>
-                    <option value="delete">Delete Item</option>
-                </select>
-            </div>
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session.user;
 
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>User</th>
-                        <th>Action</th>
-                        <th>Details</th>
-                    </tr>
-                </thead>
-                <tbody id="logEntries">
-                    <!-- Log entries will be populated dynamically -->
-                </tbody>
-            </table>
-        </div>
-    </div>
+      // 3) Fetch logs (your RLS should allow admins)
+      const { data: logs, error } = await supabase
+        .from('logs')
+        .select('timestamp, activity_type, details, profiles(email)')
+        .order('timestamp', { ascending: false });
 
-    <script src="app.js"></script>
-    <script>
-        // Check if user is admin
-        function checkAdminAccess() {
-            const userRole = localStorage.getItem('userRole');
-            if (userRole !== 'admin') {
-                showAlert('Access denied. Admin privileges required.', 'danger');
-                window.location.href = 'dashboard.html';
-                return false;
-            }
-            return true;
-        }
+      if (error) {
+        showAlert('Error loading logs: ' + error.message, 'danger');
+        return;
+      }
 
-        // Sample data - will be replaced with Firebase data
-        let logEntries = [
-            {
-                id: 1,
-                timestamp: '2024-03-15T10:30:00',
-                user: 'john.doe@example.com',
-                action: 'login',
-                details: 'User logged in successfully'
-            },
-            {
-                id: 2,
-                timestamp: '2024-03-15T10:35:00',
-                user: 'john.doe@example.com',
-                action: 'add',
-                details: 'Added item: Rice'
-            },
-            {
-                id: 3,
-                timestamp: '2024-03-15T11:00:00',
-                user: 'jane.smith@example.com',
-                action: 'edit',
-                details: 'Updated quantity of Pasta'
-            }
-        ];
-
-        // Display log entries
-        function displayLogs(entries) {
-            const tbody = document.getElementById('logEntries');
-            tbody.innerHTML = '';
-
-            entries.forEach(entry => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${formatDateTime(entry.timestamp)}</td>
-                    <td>${entry.user}</td>
-                    <td>${entry.action}</td>
-                    <td>${entry.details}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Format date and time
-        function formatDateTime(dateString) {
-            const options = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            };
-            return new Date(dateString).toLocaleString(undefined, options);
-        }
-
-        // Filter logs
-        function filterLogs() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const dateFilter = document.getElementById('dateFilter').value;
-            const actionFilter = document.getElementById('actionFilter').value;
-
-            let filtered = logEntries;
-
-            // Apply search filter
-            if (searchTerm) {
-                filtered = filtered.filter(entry =>
-                    entry.user.toLowerCase().includes(searchTerm) ||
-                    entry.details.toLowerCase().includes(searchTerm)
-                );
-            }
-
-            // Apply date filter
-            if (dateFilter) {
-                filtered = filtered.filter(entry =>
-                    entry.timestamp.startsWith(dateFilter)
-                );
-            }
-
-            // Apply action filter
-            if (actionFilter) {
-                filtered = filtered.filter(entry =>
-                    entry.action === actionFilter
-                );
-            }
-
-            displayLogs(filtered);
-        }
-
-        // Add event listeners for filters
-        document.getElementById('searchInput').addEventListener('input', filterLogs);
-        document.getElementById('dateFilter').addEventListener('change', filterLogs);
-        document.getElementById('actionFilter').addEventListener('change', filterLogs);
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            if (checkAdminAccess()) {
-                displayLogs(logEntries);
-            }
-        });
-    </script>
-<script type="module" src="app.js"></script>
+      // 4) Render
+      const tbody = document.getElementById('logsTable');
+      tbody.innerHTML = '';
+      logs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(log.timestamp).toLocaleString()}</td>
+          <td>${log.profiles?.email || 'Unknown'}</td>
+          <td>${log.activity_type}</td>
+          <td>${log.details || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  </script>
 </body>
-</html> 
+</html>
