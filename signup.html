@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Pantry Inventory Management</title>
+  <title>Sign Up - Pantry Inventory Management</title>
   <link rel="stylesheet" href="styles.css">
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
@@ -26,28 +26,40 @@
     <div id="alertContainer"></div>
 
     <div class="text-center mt-2">
-      <h1>Pantry Inventory Management</h1>
-      <p>Please log in to continue</p>
+      <h1>Create an Account</h1>
+      <p>Join our Pantry Inventory Management System</p>
     </div>
 
     <div style="max-width: 400px; margin: 2rem auto;">
-      <form id="loginForm">
+      <form id="signupForm">
+        <div class="form-group">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" class="form-control" required>
+        </div>
+
         <div class="form-group">
           <label for="email">Email</label>
-          <input type="email" id="email" class="form-control" placeholder="you@example.com" required>
+          <input type="email" id="email" class="form-control" required>
         </div>
 
         <div class="form-group">
           <label for="password">Password</label>
-          <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+          <input type="password" id="password" class="form-control" required>
+          <div id="passwordStrength"></div>
+          <div class="invalid-feedback"></div>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" class="form-control" required>
+          <div class="invalid-feedback"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
       </form>
 
       <div class="text-center mt-2">
-        <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
-        <p><a href="reset-password.html">Forgot your password?</a></p>
+        <p>Already have an account? <a href="index.html">Login here</a></p>
       </div>
     </div>
   </div>
@@ -63,43 +75,37 @@
       container.appendChild(alertDiv);
     }
 
-    document.getElementById('loginForm').onsubmit = async function(e) {
+    document.getElementById('signupForm').onsubmit = async function(e) {
       e.preventDefault();
+      const fullName = document.getElementById('fullName').value;
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirmPassword').value;
 
-      // Sign in with Supabase
-      const { data: { user }, error: signInError } =
-        await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        showAlert('Login failed: ' + signInError.message, 'danger');
+      if (password !== confirm) {
+        showAlert('Passwords do not match', 'warning');
         return;
       }
 
-      // Fetch user role from profiles (allow zero or one row)
-      const { data: profile, error: profileError } =
-        await supabase
-          .from('profiles')
-          .select('role')
-          .eq('uid', user.id)
-          .maybeSingle();
-      if (profileError) {
-        showAlert('Error loading profile: ' + profileError.message, 'danger');
-        await supabase.auth.signOut();
-        return;
-      }
-      if (!profile) {
-        showAlert('No profile found. Please sign up first.', 'warning');
-        await supabase.auth.signOut();
+      // Sign up with Supabase
+      const { data: { user }, error: signError } =
+        await supabase.auth.signUp({ email, password });
+      if (signError) {
+        showAlert(signError.message, 'danger');
         return;
       }
 
-      // Redirect based on role
-      if (profile.role === 'admin') {
-        window.location = 'admin-dashboard.html';
-      } else {
-        window.location = 'dashboard.html';
+      // Insert profile record
+      const { error: profError } = await supabase
+        .from('profiles')
+        .insert([{ uid: user.id, email: user.email, role: 'user' }]);
+      if (profError) {
+        showAlert(profError.message, 'danger');
+        return;
       }
+
+      showAlert('Account created! Redirecting to dashboard...', 'success');
+      setTimeout(() => window.location.href = 'dashboard.html', 1500);
     };
   </script>
 </body>
