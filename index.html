@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,13 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login – Pantry Inventory Management</title>
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <!-- Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- App utilities (showAlert, etc.) -->
-  <script src="app.js"></script>
+  <script src="app.js" type="module"></script>
 </head>
 <body>
   <nav class="navbar">
@@ -20,15 +17,12 @@
       <li><a href="signup.html">Sign Up</a></li>
     </ul>
   </nav>
-
   <div class="container">
     <div id="alertContainer"></div>
-
     <div class="text-center mt-2">
       <h1>Pantry Inventory Management</h1>
       <p>Please log in to continue</p>
     </div>
-
     <form id="loginForm" style="max-width:400px;margin:2rem auto;">
       <div class="form-group">
         <label for="email">Email</label>
@@ -40,15 +34,15 @@
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Log In</button>
     </form>
-
     <div class="text-center mt-2">
       <p>Don't have an account? <a href="signup.html">Sign Up Here</a></p>
       <p><a href="reset-password.html">Forgot your password?</a></p>
     </div>
   </div>
 
-  <script>
-    // Replace with your actual admin email
+  <script type="module">
+    import { logActivity } from './app.js';
+
     const ADMIN_EMAIL = 'josephwilliams8603@gmail.com';
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -56,7 +50,6 @@
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      // 1) Sign in
       const { data: { user }, error: signInError } =
         await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
@@ -64,28 +57,18 @@
         return;
       }
 
-      // 2) Try to read their profile
       let role = 'user';
       try {
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('uid', user.id)
-          .maybeSingle();
-        if (profile && profile.role) {
-          role = profile.role;
-        }
+          .from('profiles').select('role').eq('uid', user.id).maybeSingle();
+        if (profile?.role) role = profile.role;
       } catch (err) {
         console.error('Profile fetch failed:', err);
       }
 
-      // 3) If this is the known admin email, force admin
-      if (email === ADMIN_EMAIL) {
-        role = 'admin';
-      }
-
-      // 4) Store role and redirect to unified dashboard
+      if (email === ADMIN_EMAIL) role = 'admin';
       sessionStorage.setItem('userRole', role);
+      await logActivity('Login');
       window.location.href = 'dashboard.html';
     });
   </script>
