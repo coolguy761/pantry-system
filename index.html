@@ -10,11 +10,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <!-- Your Supabase configuration -->
   <script src="supabase-config.js"></script>
-  <!-- Your common utilities (showAlert, checkAuth, etc.) -->
+  <!-- Your common utilities (showAlert, etc.) -->
   <script src="app.js"></script>
 </head>
 <body>
-  <!-- Navigation -->
   <nav class="navbar">
     <ul class="nav-list">
       <li><a href="index.html" class="active">Login</a></li>
@@ -23,7 +22,6 @@
   </nav>
 
   <div class="container">
-    <!-- Placeholder for styled alerts -->
     <div id="alertContainer"></div>
 
     <div class="text-center mt-2">
@@ -34,11 +32,11 @@
     <form id="loginForm" style="max-width:400px;margin:2rem auto;">
       <div class="form-group">
         <label for="email">Email</label>
-        <input type="email" id="email" class="form-control" placeholder="you@example.com" required />
+        <input type="email" id="email" class="form-control" required />
       </div>
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" class="form-control" placeholder="••••••••" required />
+        <input type="password" id="password" class="form-control" required />
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Log In</button>
     </form>
@@ -74,16 +72,29 @@
         return;
       }
 
-      // 3) If no profile row exists (maybe trigger wasn’t set), insert one
+      // 3) Upsert (insert or skip) profile to avoid duplicate-key 409
       if (!profile) {
-        const { error: insertError } = await supabase
+        const { error: upsertError } = await supabase
           .from('profiles')
-          .insert([{ uid: user.id, email: user.email, role: 'user' }]);
-        if (insertError) {
-          showAlert('Error creating profile: ' + insertError.message, 'danger');
+          .upsert(
+            [{ uid: user.id, email: user.email, role: 'user' }],
+            { onConflict: ['uid'] }
+          );
+        if (upsertError) {
+          showAlert('Error creating profile: ' + upsertError.message, 'danger');
           return;
         }
-        profile = { role: 'user' };
+        // Re-fetch the profile role
+        const { data: newProfile, error: newProfErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('uid', user.id)
+          .single();
+        if (newProfErr) {
+          showAlert('Error loading profile: ' + newProfErr.message, 'danger');
+          return;
+        }
+        profile = newProfile;
       }
 
       // 4) Redirect based on role
@@ -96,4 +107,5 @@
   </script>
 </body>
 </html>
+
 
