@@ -1,5 +1,5 @@
 // app.js
-// Supabase must already be initialized on window.supabase
+// Assumes window.supabase is already set up via your supabase-config.js
 
 // 1) Logging helper
 window.logActivity = async function(type, details = '') {
@@ -16,17 +16,57 @@ window.logActivity = async function(type, details = '') {
   }
 };
 
-// 2) Modal handling
-window.showModal = function(modalId) {
-  const m = document.getElementById(modalId);
+// 2) showAlert
+window.showAlert = function(message, type = 'success') {
+  const container = document.querySelector('.container') || document.body;
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type}`;
+  alertDiv.textContent = message;
+  container.insertBefore(alertDiv, container.firstChild);
+  setTimeout(() => alertDiv.remove(), 3000);
+};
+
+// 3) formatDate
+window.formatDate = function(dateString) {
+  const d = new Date(dateString);
+  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+};
+
+// 4) Authentication guard
+window.checkAuth = async function() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    window.location.href = 'index.html';
+  }
+};
+
+// 5) isAdmin guard
+window.isAdmin = function() {
+  return sessionStorage.getItem('userRole') === 'admin';
+};
+
+// 6) Logout
+window.handleLogout = async function() {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    showAlert('Logout failed: ' + error.message, 'danger');
+  } else {
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  }
+};
+
+// 7) Modal helpers
+window.showModal = function(id) {
+  const m = document.getElementById(id);
   if (m) m.style.display = 'block';
 };
-window.hideModal = function(modalId) {
-  const m = document.getElementById(modalId);
+window.hideModal = function(id) {
+  const m = document.getElementById(id);
   if (m) m.style.display = 'none';
 };
 
-// 3) Simple form validation
+// 8) Form validation
 function validateForm(form) {
   let valid = true;
   form.querySelectorAll('[required]').forEach(input => {
@@ -40,51 +80,11 @@ function validateForm(form) {
   return valid;
 }
 
-// 4) showAlert
-window.showAlert = function(message, type = 'success') {
-  const container = document.querySelector('.container') || document.body;
-  const alertDiv = document.createElement('div');
-  alertDiv.className = `alert alert-${type}`;
-  alertDiv.textContent = message;
-  container.insertBefore(alertDiv, container.firstChild);
-  setTimeout(() => alertDiv.remove(), 3000);
-};
-
-// 5) formatDate
-window.formatDate = function(dateString) {
-  const d = new Date(dateString);
-  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
-};
-
-// 6) checkAuth
-window.checkAuth = async function() {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error || !session) {
-    window.location.href = 'index.html';
-  }
-};
-
-// 7) isAdmin
-window.isAdmin = function() {
-  return sessionStorage.getItem('userRole') === 'admin';
-};
-
-// 8) handleLogout
-window.handleLogout = async function() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    window.showAlert('Logout failed: ' + error.message, 'danger');
-  } else {
-    sessionStorage.clear();
-    window.location.href = 'index.html';
-  }
-};
-
-// 9) Global DOMContentLoaded to wire up forms/modals
+// 9) Global setup
 document.addEventListener('DOMContentLoaded', () => {
-  // form validation
+  // a) Attach form validation
   document.querySelectorAll('form').forEach(form => {
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', (e) => {
       if (!validateForm(form)) {
         e.preventDefault();
         showAlert('Please fill in all required fields', 'danger');
@@ -92,20 +92,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // wire logout buttons
+  // b) Wire logout buttons
   document.querySelectorAll('.logout-btn').forEach(btn => {
     btn.addEventListener('click', handleLogout);
   });
 
-  // show/hide admin‐only
+  // c) Show/hide admin-only elements
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin() ? 'block' : 'none';
   });
 
-  // guard pages
+  // d) Redirect non-public pages if not logged in
   const publicPages = ['index.html','signup.html','reset-password.html','confirm-reset.html'];
-  const cur = window.location.pathname.split('/').pop();
-  if (!publicPages.includes(cur)) {
+  const page = window.location.pathname.split('/').pop();
+  if (!publicPages.includes(page)) {
     checkAuth();
   }
+
+  // e) Close modals on outside click
+  window.addEventListener('click', (ev) => {
+    if (ev.target.classList.contains('modal')) {
+      ev.target.style.display = 'none';
+    }
+  });
 });
+
