@@ -3,7 +3,7 @@
 // MUST be loaded after supabase-config.js
 
 // Show styled alerts
-export function showAlert(message, type = 'info') {
+function showAlert(message, type = 'info') {
   const container = document.getElementById('alertContainer');
   if (!container) return;
   const alertDiv = document.createElement('div');
@@ -13,46 +13,47 @@ export function showAlert(message, type = 'info') {
   container.appendChild(alertDiv);
 }
 
-// Hide any open modals by id
-export function hideModal(modalId) {
+// Hide any open modal by id
+function hideModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.style.display = 'none';
 }
 
 // Check authentication on protected pages
 (async function checkAuth() {
-  // Only run on pages beyond login/signup/reset
-  const protected = [
+  const protectedPages = [
     'dashboard.html', 'admin-dashboard.html',
     'pantry.html', 'shopping-list.html',
     'manage-users.html', 'user-logs.html', 'user-management.html'
   ];
   const current = window.location.pathname.split('/').pop();
-  if (!protected.includes(current)) return;
+  if (!protectedPages.includes(current)) return;
 
-  // Get current session
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session) {
-    // Not logged in, redirect to login
-    return window.location = 'index.html';
+    window.location.href = 'index.html';
+    return;
   }
-  // Optionally, you can refresh the page or set global user
   window.currentUser = session.user;
 })();
 
-// Example display helper (override per-page)
-export function displayItems(items) {
-  // Placeholder: implement per-page UI rendering
+// Placeholder for item rendering (override per-page)
+function displayItems(items) {
   console.warn('displayItems not implemented', items);
 }
 
-// Sign out utility
+// Attach logout handler and auth state change redirect
 document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.onclick = async () => {
       await supabase.auth.signOut();
-      window.location = 'index.html';
+      window.location.href = 'index.html';
     };
   }
+});
+
+// Redirect to login on any auth change that ends session
+supabase.auth.onAuthStateChange((event, session) => {
+  if (!session) window.location.href = 'index.html';
 });
