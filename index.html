@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <!-- Your Supabase configuration -->
   <script src="supabase-config.js"></script>
-  <!-- Your common utilities (showAlert, etc.) -->
+  <!-- Your common utilities (showAlert, isAdmin, etc.) -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -96,6 +96,9 @@
         }
         profile = newProfile;
       }
+
+      // ✨ Store the role so isAdmin() works
+      sessionStorage.setItem('userRole', profile.role);
 
       // 5) Redirect based on role
       if (profile.role === 'admin') {
