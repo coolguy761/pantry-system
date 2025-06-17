@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <!-- Supabase config -->
   <script src="supabase-config.js"></script>
-  <!-- App utilities -->
+  <!-- App utilities (showAlert, etc.) -->
   <script src="app.js"></script>
 </head>
 <body>
@@ -79,19 +79,16 @@
         console.error('Profile fetch failed:', err);
       }
 
-      // 3) if this is the known admin email, force admin
+      // 3) If this is the known admin email, force admin
       if (email === ADMIN_EMAIL) {
         role = 'admin';
       }
 
-      // 4) Store and redirect
+      // 4) Store role and redirect to unified dashboard
       sessionStorage.setItem('userRole', role);
-      if (role === 'admin') {
-        window.location.href = 'admin-dashboard.html';
-      } else {
-        window.location.href = 'dashboard.html';
-      }
+      window.location.href = 'dashboard.html';
     });
   </script>
 </body>
 </html>
+
